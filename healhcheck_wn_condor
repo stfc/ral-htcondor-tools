@@ -23,6 +23,14 @@ NAGIOS_SERVER="130.246.180.225"         # Nagios server obviously
 typeset -i no_dead_guys                 # number of dead cvmfs repos
 declare -a dead_guys                    # Array to hold dead cvmfs user regex
 declare -a file_systems                 # Array to hold list of filesystems
+if `grep workernode-virtual /etc/motd`         # Is the node a virtual node?
+then
+    VIRTUAL_WORKER=0			# Is the node a virtual node?
+    uptime=10
+else
+    VIRTUAL_WORKER=1
+    uptime=2
+fi
 
 # we need a hash to map VOs to regex
 # Only declare it once
@@ -170,26 +178,29 @@ else
         debug "condor scratch area is writable"
 fi
 
-# check swap
-# This test depends on the nagios check_swap script being available, so check first
-if [ ! -f /usr/lib64/nagios/plugins/check_swap ]
+if [[ $VIRTUAL_WORKER -ne 1 ]] 
 then
-        Nmesg="Problem: No check swap script available"
-        tell_and_die $Nmesg
-fi
-debug "Testing swap free"
-if [ $debug_val -gt 0 ]
-then
-        /usr/lib64/nagios/plugins/check_swap -w 25% -c 20%
-        rc=$?
-else
-        /usr/lib64/nagios/plugins/check_swap -w 25% -c 20% >/dev/null 2>&1
-        rc=$?
-fi
-if [ $rc -gt 0 ]
-then
-        Nmesg="Problem: Swap in use, less than 25% free"
-        tell_and_die $Nmesg
+    # check swap
+    # This test depends on the nagios check_swap script being available, so check first
+    if [ ! -f /usr/lib64/nagios/plugins/check_swap ]
+    then
+            Nmesg="Problem: No check swap script available"
+            tell_and_die $Nmesg
+    fi
+    debug "Testing swap free"
+    if [ $debug_val -gt 0 ]
+    then
+            /usr/lib64/nagios/plugins/check_swap -w 25% -c 20%
+            rc=$?
+    else
+            /usr/lib64/nagios/plugins/check_swap -w 25% -c 20% >/dev/null 2>&1
+            rc=$?
+    fi
+    if [ $rc -gt 0 ]
+    then
+            Nmesg="Problem: Swap in use, less than 25% free"
+            tell_and_die $Nmesg
+    fi
 fi
 
 # check disk pool
@@ -283,7 +294,7 @@ if [ $debug_val -gt 0 ]
 fi
 
 upfoo=$(uptime | awk '{if (match($4, "min")) print $3 ; else print "100"}')
-if [ $upfoo -le 10 ]
+if [ $upfoo -le $uptime ]
 then
         Nmesg="Problem: Machine up less than 10 minutes."
         tell_and_die $Nmesg
