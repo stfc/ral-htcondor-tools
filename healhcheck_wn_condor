@@ -27,7 +27,6 @@ log_message="Failed healthcheck:"	# log message preamble
 debug_val=0				# to debug or not debug ?
 NAGIOS_SERVER="130.246.180.225"         # Nagios server obviously
 typeset -i no_dead_guys                 # number of dead cvmfs repos
-typeset -i cinodes			# number of CVMFS inodes used. 
 declare -a dead_guys                    # Array to hold dead cvmfs user regex
 declare -a file_systems                 # Array to hold list of filesystems
 
@@ -67,7 +66,7 @@ fi
 function tell_and_die() {
 	# function called to deal with critical condition.
 	# no dead repos or more than 2 dead repos
-	if [ $no_dead_guys -ge 2 -o $no_dead_guys -le 0 ]
+	if [ $no_dead_guys -ge 2 -o $no_dead_guys -le 0 ]	# more than 2 dead repos
 	then
 		mesg="NODE_IS_HEALTHY = False"	# Message for condor
 		TellNagios=$@			# Message for nagios
@@ -122,7 +121,7 @@ do
 		Nmesg="$Nmesg, CVMFS problem for $vo"
 		dead_guys=("${dead_guys[@]}" ${vos[$vo]})
 	fi
-	# now to check  cvmfs inodes stuff
+	# now to cvmfs idnodes stuff
 	cinodes=$(cvmfs_talk -i $vo internal affairs | sed -ne 's/^.*generation://p')
 	cinodes=${foo:-0}
 	debug "Inodes used for $vo is $cinodes"
