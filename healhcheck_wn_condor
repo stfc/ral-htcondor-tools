@@ -1,12 +1,6 @@
 #!/bin/sh
 #  Worker node health check script, to run from condor startd
-
-# Modified by jpk <jpk@gridpp.rl.ac.uk>
-# on Tue Aug 13 09:06:46 BST 2013
 #
-# Tests extended to include space on /pool and
-# -d option on Tue Sep  3 09:56:40 BST 2013
-
 # Note to explain healhcheck script with per VO disabling.
 # If we want to disable jobs starts on a per VO basis the script needs to return something like:
 # NODE_IS_HEALTHY = True && (regexp("atl", Owner) =!= False) && (regexp("cms", Owner) =!= False)
@@ -16,7 +10,7 @@ DATE=$(date)
 PROGRAM=`basename $0`
 SHOSTNAME=$(hostname -s)
 Nmesg=""				# per test message
-TellNagios="All OK"			# What to tell nagios
+TellNagios="All_OK"			# What to tell nagios
 mesg="NODE_IS_HEALTHY = True"		# Default OK to condor
 test_file="/pool/condor/andrewIsGreat"	# A test file name
 rc=0					# exit code, 0 by default
@@ -26,6 +20,8 @@ LOGGER="/usr/bin/env logger"		# logger program
 log_message="Failed healthcheck:"	# log message preamble
 debug_val=0				# to debug or not debug ?
 NAGIOS_SERVER="130.246.180.225"         # Nagios server obviously
+TIME_SERVER="130.246.8.13"          	# time server obviously
+time_secs=2	           		# allowed time drift
 typeset -i no_dead_guys                 # number of dead cvmfs repos
 declare -a dead_guys                    # Array to hold dead cvmfs user regex
 declare -a file_systems                 # Array to hold list of filesystems
@@ -37,6 +33,7 @@ vos["atlas.cern.ch"]=atl
 vos["atlas-condb.cern.ch"]=atl
 vos["cms.cern.ch"]=cms
 vos["lhcb.cern.ch"]=lhcb
+vos["alice.cern.ch"]=alice
 
 
 # first check for debug on command line.
@@ -72,7 +69,8 @@ function tell_and_die() {
 		TellNagios=$@			# Message for nagios
 		exit_code=2 			# Nagios critical
 		echo $mesg			# standard out to condor
-		log_message="$log_message  $TellNagios" 	# log message
+		echo "NODE_STATUS = \"$TellNagios\""
+		log_message="$log_message  ${TellNagios}" 	# log message
 	else
 		for dead in ${dead_guys[@]}
 		do
@@ -81,6 +79,7 @@ function tell_and_die() {
 		TellNagios=$@			# Message for nagios
 		exit_code=1 			# Nagios warn
 		echo $mesg			# standard out to condor
+		echo "NODE_STATUS = \"$TellNagios\""
 		log_message="$log_message  $TellNagios" 	# log message
 	fi
 	if [ $debug_val -gt 0 ] 	# if debug, we want to know what is going on
@@ -99,9 +98,29 @@ debug "starting ${PROGRAM} on ${DATE}"
 # This test depends on the nagios check_cvmfs script being available, so check first
 if [ ! -f /usr/lib/nagios/plugins/tier1/check_cvmfs2.sh ]
 then
-        Nmesg="No check_cvmfs2.sh script available"
+	Nmesg="Problem: check cvmfs2.sh not available"
         tell_and_die $Nmesg
 fi
+
+# Specifically check for grid.cern.ch as it is now supplying our middle ware
+debug "Checking grid.cern.ch"
+if [ $debug_val -gt 0 ]
+then
+        /usr/lib/nagios/plugins/tier1/check_cvmfs2.sh grid.cern.ch 
+        rc=$?
+else
+        /usr/lib/nagios/plugins/tier1/check_cvmfs2.sh grid.cern.ch  >/dev/null 2>&1
+        rc=$?
+fi
+
+if [ $rc -gt 0 ]
+then
+        Nmesg="${Nmesg} Problem: CVMFS for grid.cern.ch failed"
+        tell_and_die $Nmesg
+fi
+# End of check for grid.cern.ch
+
+
 debug "CVMFS check for selected VOs"
 for vo in  "${!vos[@]}"
 do
@@ -118,17 +137,7 @@ do
 
 	if [ $rc -gt 0 ]
 	then
-		Nmesg="$Nmesg, CVMFS problem for $vo"
-		dead_guys=("${dead_guys[@]}" ${vos[$vo]})
-	fi
-	# now to cvmfs idnodes stuff
-	cinodes=$(cvmfs_talk -i $vo internal affairs | sed -ne 's/^.*generation://p')
-	cinodes=${foo:-0}
-	debug "Inodes used for $vo is $cinodes"
-	if [ $cinodes -gt $(( 2**32 )) ] 
-	then
-		debug "Inodes for $vo is greater than 2^32"
-		Nmesg="$Nmesg, CVMFS inode problem for $vo"
+		Nmesg="${Nmesg} Problem: CVMFS for ${vo} "
 		dead_guys=("${dead_guys[@]}" ${vos[$vo]})
 	fi
 done
@@ -146,7 +155,7 @@ fi
 debug "Testing for writable /pool/condor"
 if [ ! -d /pool/condor ]  # no condor dir
 then
-	Nmesg="No condor scratch area"
+	Nmesg="Problem: No condor scratch area"
 	tell_and_die $Nmesg
 fi
 
@@ -158,7 +167,7 @@ trap - INT TERM EXIT
 
 if [ $rc -gt 0 ]
 then
-	Nmesg="Condor cant write to condor scratch area"
+	Nmesg="Problem: Condor cant write to condor scratch area"
 	tell_and_die $Nmesg
 else
 	debug "condor scratch area is writable"
@@ -168,7 +177,7 @@ fi
 # This test depends on the nagios check_swap script being available, so check first
 if [ ! -f /usr/lib64/nagios/plugins/check_swap ]
 then
-        Nmesg="No check_swap script available"
+	Nmesg="Problem: No check swap script available"
         tell_and_die $Nmesg
 fi
 debug "Testing swap free"
@@ -182,7 +191,7 @@ else
 fi
 if [ $rc -gt 0 ]
 then
-        Nmesg="Swap in use, less than 25% free"
+	Nmesg="Problem: Swap in use, less than 25% free"
         tell_and_die $Nmesg
 fi
 
@@ -191,7 +200,7 @@ fi
 # so check first
 if [ ! -f /usr/lib64/nagios/plugins/check_disk ]
 then
-        Nmesg="No check_disk script available"
+	Nmesg="Problem: No check disk script available"
         tell_and_die $Nmesg
 fi
 
@@ -206,13 +215,13 @@ else
 fi
 if [ $rc -gt 0 ]
 then
-        Nmesg="less than 5000Mb free on /pool"
+	Nmesg="Problem: less than 5000Mb free on /pool"
         tell_and_die $Nmesg
 fi
 
 # Check all other filesystems have at least 5% free.
-# Note that this purposely does not check cvmfs
-file_systems=`df -lh | sed -ne '/^\/dev/s/^.*\% \([^ ]*\)$/\1/p'`
+# Note that this purposely does not check cvmfs or rather fuse
+file_systems=`df -lh -x fuse | sed -ne '/^\/dev/s/^.*\% \([^ ]*\)$/\1/p'`
 
 for dir in ${file_systems[@]}
 do
@@ -229,7 +238,7 @@ do
         if [ $rc -gt 0 ]
         then
 		debug "less than 5% free on $dir"
-                Nmesg="${Nmesg}less than 5% free on $dir "
+		Nmesg="${Nmesg} Problem: less than 5% free on $dir "
         fi
 done
 if [ ! -z "$Nmesg" ]
@@ -237,6 +246,31 @@ then
         tell_and_die $Nmesg
 fi
 # End of filesystems check
+
+# Check cgroups.
+cg_enabled=$(condor_config_val BASE_CGROUP 2>/dev/null)
+debug "condor_config_val for BASE_CGROUP is: $cg_enabled"
+if [ ! -z $cg_enabled ] 
+	then
+	rc=0
+        if [ $debug_val -gt 0 ]
+        then
+		echo -ne "cgconfig status is: "
+		/sbin/service cgconfig status	
+                rc=$?
+        else
+		/sbin/service cgconfig status >/dev/null 2>&1
+                rc=$?
+        fi
+	if [ $rc -gt 0 ]
+	then
+		debug "cgroups configured in condor but cgconfig not running"
+		Nmesg="${Nmesg} Problem: cgconfig not running"
+        	tell_and_die $Nmesg
+	fi
+fi
+# End Check cgroupgs
+
 
 # Uptime check
 debug "Testing uptime is > 10 mins"
@@ -248,8 +282,33 @@ fi
 upfoo=$(uptime | awk '{if (match($4, "min")) print $3 ; else print "100"}')
 if [ $upfoo -le 10 ]
 then
-        Nmesg="Machine up less than 10 minutes."
+	Nmesg="Problem: Machine up less than 10 minutes."
         tell_and_die $Nmesg
+fi
+
+# check time offset
+rc=0 	# reset $rc
+debug "Testing for ntp drift"
+if [ ! -f /usr/lib64/nagios/plugins/check_ntp ]
+then
+	Nmesg="Problem: No check ntp script available"
+        tell_and_die $Nmesg
+fi
+
+if [ $debug_val -gt 0 ]
+        then
+	/usr/lib64/nagios/plugins/check_ntp -H ${TIME_SERVER} -c ${time_secs} 
+	rc=$?
+else
+	/usr/lib64/nagios/plugins/check_ntp -H ${TIME_SERVER} -c ${time_secs} > /dev/null 2>&1
+	rc=$?
+fi
+# Now deal with the answer.
+if [ $rc -gt 0 ]
+then
+	debug "There is more than $time_secs seconds drift"
+	Nmesg="Problem: Time drift error"
+	tell_and_die $Nmesg
 fi
 
 ## End of checks
@@ -262,6 +321,7 @@ then
 fi
 # echo our message to condor
 echo $mesg
+echo "NODE_STATUS = \"$TellNagios\""
 # exit
 exit ${exit_code}
 
