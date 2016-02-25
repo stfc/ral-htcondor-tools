@@ -4,7 +4,7 @@
 # Note to explain healhcheck script with per VO disabling.
 # If we want to disable jobs starts on a per VO basis the script needs to return something like:
 # NODE_IS_HEALTHY = True && (regexp("atl", Owner) =!= False) && (regexp("cms", Owner) =!= False)
-
+#declarations
 DATE=$(date)
 PROGRAM=`basename $0`
 SHOSTNAME=$(hostname -s)
@@ -14,6 +14,7 @@ mesg="NODE_IS_HEALTHY = True"           # Default OK to condor
 test_file="/pool/condor/andrewIsGreat"  # A test file name
 rc=0                                    # exit code, 0 by default
 typeset -i upfoo=0                      # Uptime variable
+typeset -i uptime=10			# Uptime we check for in mins 
 typeset -i exit_code=0                  # script and nagios exit code
 LOGGER="/usr/bin/env logger"            # logger program
 log_message="Failed healthcheck:"       # log message preamble
@@ -21,19 +22,17 @@ typeset -i debug_val=0                  # to debug or not debug ?
 NAGIOS_SERVER="130.246.180.225"         # Nagios server obviously
 TIME_SERVER="time.rl.ac.uk" 		# The RAL time server
 typeset -i no_dead_guys                 # number of dead cvmfs repos
-typeset -i uptime=10			# Uptime in mins 
 declare -a dead_guys                    # Array to hold dead cvmfs user regex
 declare -a file_systems                 # Array to hold list of filesystems
 typeset -i VIRTUAL_WORKER=0   	    	# Is the node a virtual node? 
-# we need a hash to map VOs to regex
-# Only declare it once
+# we need a hash to map VOs to regex -  Only declare it once
 declare -A vos
 vos["atlas.cern.ch"]=atl
 vos["atlas-condb.cern.ch"]=atl
 vos["cms.cern.ch"]=cms
 vos["lhcb.cern.ch"]=lhcb
 vos["alice.cern.ch"]=alice
-
+# End declarations.
 
 # first check for debug on command line.
 case "$1" in
@@ -62,7 +61,7 @@ fi
 
 function tell_and_die() {
         # function called to deal with critical condition.
-        # no dead repos or more than 2 dead repos
+        # 0 dead repos or more than 2 dead repos
         if [ $no_dead_guys -ge 2 -o $no_dead_guys -le 0 ]       # more than 2 dead repos
         then
                 mesg="NODE_IS_HEALTHY = False"  # Message for condor
