@@ -5,7 +5,6 @@
 # If we want to disable jobs starts on a per VO basis the script needs to return something like:
 # NODE_IS_HEALTHY = True && (regexp("atl", Owner) =!= False) && (regexp("cms", Owner) =!= False)
 
-TIME_SERVER="time.rl.ac.uk"
 DATE=$(date)
 PROGRAM=`basename $0`
 SHOSTNAME=$(hostname -s)
@@ -14,25 +13,18 @@ TellNagios="All_OK"                     # What to tell nagios
 mesg="NODE_IS_HEALTHY = True"           # Default OK to condor
 test_file="/pool/condor/andrewIsGreat"  # A test file name
 rc=0                                    # exit code, 0 by default
-upfoo=0                                 # Uptime variable
-exit_code=0                             # script and nagios exit code
+typeset -i upfoo=0                      # Uptime variable
+typeset -i exit_code=0                  # script and nagios exit code
 LOGGER="/usr/bin/env logger"            # logger program
 log_message="Failed healthcheck:"       # log message preamble
-debug_val=0                             # to debug or not debug ?
+typeset -i debug_val=0                  # to debug or not debug ?
 NAGIOS_SERVER="130.246.180.225"         # Nagios server obviously
+TIME_SERVER="time.rl.ac.uk" 		# The RAL time server
 typeset -i no_dead_guys                 # number of dead cvmfs repos
 typeset -i uptime=10			# Uptime in mins 
 declare -a dead_guys                    # Array to hold dead cvmfs user regex
 declare -a file_systems                 # Array to hold list of filesystems
-if ( grep -q workernode-virtual /etc/motd )        # Is the node a virtual node?
-then
-    VIRTUAL_WORKER=1			# Is the node a virtual node?
-    uptime=2
-else
-    VIRTUAL_WORKER=0
-    uptime=10
-fi
-
+typeset -i VIRTUAL_WORKER=0   	    	# Is the node a virtual node? 
 # we need a hash to map VOs to regex
 # Only declare it once
 declare -A vos
@@ -101,6 +93,16 @@ function tell_and_die() {
 }
 
 debug "starting ${PROGRAM} on ${DATE}"
+
+# Check if we are on a vm
+if ( grep -q workernode-virtual /etc/motd )    
+then
+    VIRTUAL_WORKER=1			# Is the node a virtual node?
+    uptime=2
+else
+    VIRTUAL_WORKER=0
+    uptime=10
+fi
 
 debug "VIRTUAL_WORKER is $VIRTUAL_WORKER"
 debug "\$uptime is $uptime"
