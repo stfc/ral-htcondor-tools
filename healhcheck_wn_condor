@@ -21,7 +21,7 @@ log_message="Failed healthcheck:"       # log message preamble
 typeset -i debug_val=0                  # to debug or not debug ?
 NAGIOS_SERVER="130.246.180.225"         # Nagios server obviously
 TIME_SERVER="time.rl.ac.uk" 		# The RAL time server
-typeset -i no_dead_guys                 # number of dead cvmfs repos
+typeset -i no_dead_guys=0               # number of dead cvmfs repos
 declare -a dead_guys                    # Array to hold dead cvmfs user regex
 declare -a file_systems                 # Array to hold list of filesystems
 typeset -i VIRTUAL_WORKER=0   	    	# Is the node a virtual node? 
