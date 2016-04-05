@@ -62,8 +62,8 @@ fi
 function tell_and_die() {
         # function called to deal with critical condition.
         # 0 dead repos or more than 2 dead repos
-        if [ $no_dead_guys -ge 2 -o $no_dead_guys -le 0 ]       # more than 2 dead repos
-        then
+        if [ $no_dead_guys -eq 0 -o $no_dead_guys -gt 2 ]       # more than 2 dead repos
+        then							# Just die with errors
                 mesg="NODE_IS_HEALTHY = False"  # Message for condor
                 TellNagios=$@                   # Message for nagios
                 exit_code=2                     # Nagios critical
@@ -84,7 +84,7 @@ function tell_and_die() {
         if [ $debug_val -gt 0 ]         # if debug, we want to know what is going on
         then
                 echo $log_message
-                return
+		exit ${exit_code}
         fi
         /bin/echo -e "${SHOSTNAME}\tCondor Health check\t${exit_code}\t${TellNagios}"| /usr/sbin/send_nsca -H 130.246.180.225 -c /etc/nagios/send_nsca.cfg >/dev/null
         $LOGGER $log_message
@@ -155,6 +155,8 @@ done
 
 # lets see if we got any dead_guys
 no_dead_guys=${#dead_guys[@]}
+
+debug "After checking CVMFS, the \$no_dead_guys is $no_dead_guys"
 if [ $no_dead_guys -gt 0 ]
 then
         tell_and_die $Nmesg
