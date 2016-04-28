@@ -350,7 +350,7 @@ fi
 	debug "EXIT_CODE    $EXIT_CODE"
 	echo $CONDOR_MESG
 	echo "NODE_STATUS = \"$NAGIOS_MESG\""
-        /bin/echo -e "${SHOSTNAME}\tCondor Health check\t${exit_code}\t${NAGIOS_MESG}"| /usr/sbin/send_nsca -H  NAGIOS_SERVER -c /etc/nagios/send_nsca.cfg >/dev/null
+	/bin/echo -e "${SHOSTNAME}\tCondor Health check\t${EXIT_CODE}\t${NAGIOS_MESG}" | /usr/sbin/send_nsca -H ${NAGIOS_SERVER} -c /etc/nagios/send_nsca.cfg >/dev/null
 	# We don't bother logging non-fatal runs.
         exit ${EXIT_CODE}
 
