@@ -123,6 +123,14 @@ then
 fi
 # end of uptime check
 
+# Test for file /etc/condor/pool_password
+debug "Checking /etc/condor/pool_password"
+if [ ! -s /etc/condor/pool_password ] 
+then
+	fatal_exit "No or zero sized pool_password file found"
+fi
+# End of pool_password check
+
 # test for time
 debug "Testing system time against ${TIME_SERVER}"
 # check the nagios plugin test exists 
