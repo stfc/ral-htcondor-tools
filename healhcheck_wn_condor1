@@ -354,11 +354,16 @@ fi
 ## End of non-fatal checks
 
 # Now just do an exit with correct codes..
-	debug "NAGIOS_MESG  $NAGIOS_MESG"
-	debug "EXIT_CODE    $EXIT_CODE"
-	echo $CONDOR_MESG
-	echo "NODE_STATUS = \"$NAGIOS_MESG\""
+debug "EXIT_CODE    $EXIT_CODE"
+echo $CONDOR_MESG
+echo "NODE_STATUS = \"$NAGIOS_MESG\""
+if [ $DEBUG_VAL -gt 0 ]
+then
+	debug "Nrpe command is:"
+	echo "/bin/echo -e \"${SHOSTNAME}\tCondor Health check\t${EXIT_CODE}\t${NAGIOS_MESG}\" | /usr/sbin/send_nsca -H ${NAGIOS_SERVER} -c /etc/nagios/send_nsca.cfg >/dev/null"
+else
 	/bin/echo -e "${SHOSTNAME}\tCondor Health check\t${EXIT_CODE}\t${NAGIOS_MESG}" | /usr/sbin/send_nsca -H ${NAGIOS_SERVER} -c /etc/nagios/send_nsca.cfg >/dev/null
-	# We don't bother logging non-fatal runs.
-        exit ${EXIT_CODE}
+fi
+# We don't bother logging non-fatal runs.
+exit ${EXIT_CODE}
 
