@@ -25,6 +25,9 @@ typeset -i DEBUG_VAL=0		# Are we debugging
 typeset -i EXIT_CODE=0		# Exit code for script and nagios
 typeset -i VIRTUAL_WORKER=0     # Is the node a virtual node 
 typeset -i UPTIME_TEST_VAL=10   # minimum uptime for machine
+typeset -i MAX_INODES=$(( 2 ** 31 ))   # maximum number of inodes 
+				# This could be set to 2^32 but just to be safe
+typeset -i MY_INODES=0  	# Number of inodes actually used
 typeset -i UPTIME_VAL=10        # actual uptime for machine
 typeset -i VIRTUAL_WORKER=0	# Is this a VM
 declare -a FILE_SYSTEMS         # Array to hold list of filesystems
@@ -330,6 +333,19 @@ do
                 TEST_MESG="${TEST_MESG} Problem: CVMFS for $vo"
                 DEAD_REPO_USERS=("${DEAD_REPO_USERS[@]}" "${VOS[$vo]}")
         fi
+	# now check the number of inodes used
+	# but we only care if it is atlas
+	if (  echo $vo | grep -q atl )
+	then
+        	debug "Checking $vo for inode_max "
+		MY_INODES=$(/usr/bin/attr -g inode_max -q /cvmfs/${vo})
+		debug "\$MY_INODES is: $MY_INODES"
+		if [ $MY_INODES -gt $MAX_INODES ] 
+		then
+			TEST_MESG="${TEST_MESG} Problem: Inodes used by $vo is $MY_INODES"
+			DEAD_REPO_USERS=("${DEAD_REPO_USERS[@]}" "${VOS[$vo]}")
+		fi
+	fi
 done
 
 # lets see if we got any DEAD_REPO_USERS
@@ -354,16 +370,11 @@ fi
 ## End of non-fatal checks
 
 # Now just do an exit with correct codes..
-debug "EXIT_CODE    $EXIT_CODE"
-echo $CONDOR_MESG
-echo "NODE_STATUS = \"$NAGIOS_MESG\""
-if [ $DEBUG_VAL -gt 0 ]
-then
-	debug "Nrpe command is:"
-	echo "/bin/echo -e \"${SHOSTNAME}\tCondor Health check\t${EXIT_CODE}\t${NAGIOS_MESG}\" | /usr/sbin/send_nsca -H ${NAGIOS_SERVER} -c /etc/nagios/send_nsca.cfg >/dev/null"
-else
+	debug "NAGIOS_MESG  $NAGIOS_MESG"
+	debug "EXIT_CODE    $EXIT_CODE"
+	echo $CONDOR_MESG
+	echo "NODE_STATUS = \"$NAGIOS_MESG\""
 	/bin/echo -e "${SHOSTNAME}\tCondor Health check\t${EXIT_CODE}\t${NAGIOS_MESG}" | /usr/sbin/send_nsca -H ${NAGIOS_SERVER} -c /etc/nagios/send_nsca.cfg >/dev/null
-fi
-# We don't bother logging non-fatal runs.
-exit ${EXIT_CODE}
+	# We don't bother logging non-fatal runs.
+        exit ${EXIT_CODE}
 
