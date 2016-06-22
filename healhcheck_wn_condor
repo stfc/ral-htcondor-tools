@@ -369,12 +369,15 @@ fi
 # end of cvmfs checks
 ## End of non-fatal checks
 
+# Default OK
 # Now just do an exit with correct codes..
-	debug "NAGIOS_MESG  $NAGIOS_MESG"
-	debug "EXIT_CODE    $EXIT_CODE"
-	echo $CONDOR_MESG
-	echo "NODE_STATUS = \"$NAGIOS_MESG\""
-	/bin/echo -e "${SHOSTNAME}\tCondor Health check\t${EXIT_CODE}\t${NAGIOS_MESG}" | /usr/sbin/send_nsca -H ${NAGIOS_SERVER} -c /etc/nagios/send_nsca.cfg >/dev/null
-	# We don't bother logging non-fatal runs.
-        exit ${EXIT_CODE}
-
+echo $CONDOR_MESG
+echo "NODE_STATUS = \"$NAGIOS_MESG\""
+debug "EXIT_CODE    $EXIT_CODE"
+if [ $debug_val -eq  0 ]
+then
+	/bin/echo -e "${SHOSTNAME}\tCondor Health check\t${exit_code}\t${TellNagios}"| /usr/sbin/send_nsca -H $NAGIOS_SERVER -c /etc/nagios/send_nsca.cfg >/dev/null
+fi
+/bin/echo -e "${SHOSTNAME}\tCondor Health check\t${EXIT_CODE}\t${NAGIOS_MESG}" | /usr/sbin/send_nsca -H ${NAGIOS_SERVER} -c /etc/nagios/send_nsca.cfg >/dev/null
+# We don't bother logging non-fatal runs.
+exit ${EXIT_CODE}
