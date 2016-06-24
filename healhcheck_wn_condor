@@ -374,7 +374,7 @@ fi
 echo $CONDOR_MESG
 echo "NODE_STATUS = \"$NAGIOS_MESG\""
 debug "EXIT_CODE    $EXIT_CODE"
-if [ $debug_val -eq  0 ]
+if [ $DEBUG_VAL -eq  0 ]
 then
 	/bin/echo -e "${SHOSTNAME}\tCondor Health check\t${exit_code}\t${TellNagios}"| /usr/sbin/send_nsca -H $NAGIOS_SERVER -c /etc/nagios/send_nsca.cfg >/dev/null
 fi
