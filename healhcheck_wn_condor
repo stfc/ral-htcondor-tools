@@ -13,6 +13,10 @@ PROGRAM=`basename $0`
 SHOSTNAME=$(hostname -s)
 NAGIOS_SERVER="130.246.180.225" # Nagios server obviously
 CONDOR_MESG="NODE_IS_HEALTHY = True"    # Message to Condor, default OK
+CONDOR_MESG_GATEWAY="True"
+CONDOR_MESG_GATEWAY_STATUS="Healthy"
+CONDOR_MESG_PROXY="True"
+CONDOR_MESG_PROXY_STATUS="Healthy"
 NAGIOS_MESG="All_OK"		# Message to nagios, default OK
 LOGGER="/usr/bin/env logger"    # logger program
 LOG_MESG="Failed healthcheck:"  # log message preamble, to be extended in script
@@ -25,9 +29,6 @@ typeset -i DEBUG_VAL=0		# Are we debugging
 typeset -i EXIT_CODE=0		# Exit code for script and nagios
 typeset -i VIRTUAL_WORKER=0     # Is the node a virtual node 
 typeset -i UPTIME_TEST_VAL=10   # minimum uptime for machine
-typeset -i MAX_INODES=$(( 2 ** 31 ))   # maximum number of inodes 
-				# This could be set to 2^32 but just to be safe
-typeset -i MY_INODES=0  	# Number of inodes actually used
 typeset -i UPTIME_VAL=10        # actual uptime for machine
 typeset -i VIRTUAL_WORKER=0	# Is this a VM
 declare -a FILE_SYSTEMS         # Array to hold list of filesystems
@@ -155,6 +156,33 @@ then
         fatal_exit "Problem: machine clock more than 1 second out" 
 fi
 # end of time check. 
+
+# Check if /pool is a mountpoint
+debug "Checking if /pool is a mountpoint"
+mountpoint /pool > /dev/null 2>&1
+RC=$?
+if [ $RC -gt 0 ]
+then
+        fatal_exit "Problem: /pool is not a mountpoint"
+fi
+# end of mountpoint check
+
+# Check if xfs_info is installed
+debug "Checking if xfs_info is installed"
+if [ ! -f /usr/sbin/xfs_info ]; then
+        fatal_exit "Problem: xfs_info is not installed"
+fi
+# end of xfs_info check
+
+# Check if /pool is formatted correctly
+debug "Checking if /pool is formatted correctly"
+xfs_info /pool | grep ftype=1 > /dev/null 2>&1
+RC=$?
+if [ $RC -gt 0 ]
+then
+        fatal_exit "Problem: /pool is not on a properly formatted XFS filesystem"
+fi
+# end check if /pool is formatted correctly
 
 # Read-only filesystem check. Cant run the whole thing cos we would need root.
 # But we can check the condor directory.
@@ -287,29 +315,102 @@ then
 fi
 # End of filesystems check
 
-# Check cgroups.
+# Check cgroups on worker nodes that don't have Docker installed
 debug "Testing cgroups"
-CG_ENABLED=$(condor_config_val BASE_CGROUP 2>/dev/null)
-debug "condor_config_val for BASE_CGROUP is: $CG_ENABLED"
-if [ ! -z $CG_ENABLED ]
+if [ ! -f "/usr/bin/docker" ]
+then
+        CG_ENABLED=$(condor_config_val BASE_CGROUP 2>/dev/null)
+        debug "condor_config_val for BASE_CGROUP is: $CG_ENABLED"
+        if [ ! -z $CG_ENABLED ]
         then
-        RC=0
-        if [ $DEBUG_VAL -gt 0 ]
-        then
-                debug "cgconfig status is: "
-                /sbin/service cgconfig status
-                RC=$?
-        else
-                /sbin/service cgconfig status >/dev/null 2>&1
-                RC=$?
-        fi
-        if [ $RC -gt 0 ]
-        then
-                debug "cgroups configured in condor but cgconfig not running"
-                fatal_exit "Problem: cgconfig not running"
+                RC=0
+                if [ $DEBUG_VAL -gt 0 ]
+                then
+                        debug "cgconfig status is: "
+                        /sbin/service cgconfig status
+                        RC=$?
+                else
+                        /sbin/service cgconfig status >/dev/null 2>&1
+                        RC=$?
+                fi
+                if [ $RC -gt 0 ]
+                then
+                        debug "cgroups configured in condor but cgconfig not running"
+                        fatal_exit "Problem: cgconfig not running"
+                fi
         fi
 fi
 # End Check cgroupgs
+
+# Check if Docker daemon is ok
+
+if [ -f "/usr/bin/docker" ]
+then
+        # A basic check that the Docker daemon is running
+        sudo /usr/bin/docker ps >/dev/null 2>&1
+        RC=$?
+        if [ $RC -ne 0 ]
+        then
+                fatal_exit "Problem: Cannot obtain list of Docker containers"
+        fi
+
+        # Check that containerd is running
+        pidof docker-containerd > /dev/null 2>&1
+        RC=$?
+        if [ $RC -ne 0 ]
+        then
+                fatal_exit "Problem: containerd is not running"
+        fi
+
+        # Check that containers can be created successfully
+        sudo /usr/bin/docker run --rm -m 5m busybox date >/dev/null 2>&1
+        RC=$?
+        if [ $RC -ne 0 ]
+        then
+                fatal_exit "Problem: Unable to run Docker containers"
+        fi
+	
+fi
+
+# End Check docker
+
+# Check if local Echo xrootd gateway is running
+
+if [ -f "/usr/bin/docker" ]
+then
+        { gwstatus=`sudo /usr/bin/docker inspect --format '{{ .State.Health.Status }}' xrootd-gateway`; } 2>/dev/null
+        RC=$?
+        if [ $RC -ne 0 ]; then
+                TEST_MESG="${TEST_MESG} Problem: local xrootd gateway"
+                CONDOR_MESG_GATEWAY="(WantEchoXrootd =?= False || WantEchoXrootd =?= UNDEFINED)"
+                CONDOR_MESG_GATEWAY_STATUS="None"
+        else
+                if [ $gwstatus == "unhealthy" ]; then
+                        TEST_MESG="${TEST_MESG} Problem: local xrootd gateway"
+                        CONDOR_MESG_GATEWAY="(WantEchoXrootd =?= False || WantEchoXrootd =?= UNDEFINED)"
+                        CONDOR_MESG_GATEWAY_STATUS="Unhealthy"
+                fi
+        fi
+fi
+
+# Check if local Echo xrootd proxy is running
+
+if [ -f "/usr/bin/docker" ]
+then
+        { gwstatus=`sudo /usr/bin/docker inspect --format '{{ .State.Health.Status }}' xrootd-proxy`; } 2>/dev/null
+        RC=$?
+        if [ $RC -ne 0 ]; then
+                TEST_MESG="${TEST_MESG} Problem: local xrootd proxy"
+                CONDOR_MESG_PROXY="(WantEchoXrootd =?= False || WantEchoXrootd =?= UNDEFINED)"
+                CONDOR_MESG_PROXY_STATUS="None"
+        else
+                if [ $gwstatus == "unhealthy" ]; then
+                        TEST_MESG="${TEST_MESG} Problem: local xrootd proxy"
+                        CONDOR_MESG_PROXY="(WantEchoXrootd =?= False || WantEchoXrootd =?= UNDEFINED)"
+                        CONDOR_MESG_PROXY_STATUS="Unhealthy"
+                fi
+        fi
+fi
 
 ## Non-fatal checks these don't call fatal_exit but simply set NAGIOS_MESG,  
 ## CONDOR_MESG and EXIT_CODE and exit 
@@ -333,19 +434,6 @@ do
                 TEST_MESG="${TEST_MESG} Problem: CVMFS for $vo"
                 DEAD_REPO_USERS=("${DEAD_REPO_USERS[@]}" "${VOS[$vo]}")
         fi
-	# now check the number of inodes used
-	# but we only care if it is atlas
-	if (  echo $vo | grep -q atl )
-	then
-        	debug "Checking $vo for inode_max "
-		MY_INODES=$(/usr/bin/attr -g inode_max -q /cvmfs/${vo})
-		debug "\$MY_INODES is: $MY_INODES"
-		if [ $MY_INODES -gt $MAX_INODES ] 
-		then
-			TEST_MESG="${TEST_MESG} Problem: Inodes used by $vo is $MY_INODES"
-			DEAD_REPO_USERS=("${DEAD_REPO_USERS[@]}" "${VOS[$vo]}")
-		fi
-	fi
 done
 
 # lets see if we got any DEAD_REPO_USERS
@@ -369,15 +457,20 @@ fi
 # end of cvmfs checks
 ## End of non-fatal checks
 
-# Default OK
+# Handle status of local xrootd gateway
+        CONDOR_MESG="${CONDOR_MESG} && ${CONDOR_MESG_GATEWAY}"
+
+# Handle status of local xrootd proxy
+        CONDOR_MESG="${CONDOR_MESG} && ${CONDOR_MESG_PROXY}"
+
 # Now just do an exit with correct codes..
-echo $CONDOR_MESG
-echo "NODE_STATUS = \"$NAGIOS_MESG\""
-debug "EXIT_CODE    $EXIT_CODE"
-if [ $DEBUG_VAL -eq  0 ]
-then
-	/bin/echo -e "${SHOSTNAME}\tCondor Health check\t${exit_code}\t${TellNagios}"| /usr/sbin/send_nsca -H $NAGIOS_SERVER -c /etc/nagios/send_nsca.cfg >/dev/null
-fi
-/bin/echo -e "${SHOSTNAME}\tCondor Health check\t${EXIT_CODE}\t${NAGIOS_MESG}" | /usr/sbin/send_nsca -H ${NAGIOS_SERVER} -c /etc/nagios/send_nsca.cfg >/dev/null
-# We don't bother logging non-fatal runs.
-exit ${EXIT_CODE}
+	debug "NAGIOS_MESG  $NAGIOS_MESG"
+	debug "EXIT_CODE    $EXIT_CODE"
+	echo $CONDOR_MESG
+	echo "NODE_STATUS = \"$NAGIOS_MESG\""
+        echo "ECHO_XROOTD_GATEWAY_STATUS = \"$CONDOR_MESG_GATEWAY_STATUS\""
+        echo "ECHO_XROOTD_PROXY_STATUS = \"$CONDOR_MESG_PROXY_STATUS\""
+	/bin/echo -e "${SHOSTNAME}\tCondor Health check\t${EXIT_CODE}\t${NAGIOS_MESG}" | /usr/sbin/send_nsca -H ${NAGIOS_SERVER} -c /etc/nagios/send_nsca.cfg >/dev/null
+	# We don't bother logging non-fatal runs.
+        exit ${EXIT_CODE}
+
