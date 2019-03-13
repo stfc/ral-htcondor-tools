@@ -40,6 +40,11 @@ for arg in sys.argv:
             dargs.append('--cap-add=SYS_CHROOT')
     count += 1
 
+
+if '/' in dargs[-1] and not dargs[-1].startswith('-'):
+    command = dargs.pop()
+    dargs = dargs + ['/usr/bin/nice', '-n 15', command]
+
 p = Popen(dargs, stdout=PIPE, stderr=PIPE)
 output, err = p.communicate()
 for l in output:
