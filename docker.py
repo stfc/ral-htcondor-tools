@@ -9,7 +9,7 @@ if any('grid-workernode-c7' in arg for arg in sys.argv):
     singularity = True
 
 gateway = False
-if any('atl' in arg for arg in sys.argv) or any('cms' in arg for arg in sys.argv):
+if any('atl' in arg for arg in sys.argv) or any('cms' in arg for arg in sys.argv) or any('lhcb' in arg for arg in sys.argv):
     gateway = True
 
 count = 0
