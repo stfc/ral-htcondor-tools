@@ -3,6 +3,7 @@ import os
 import re
 import sys
 from subprocess import Popen, PIPE
+from socket import getfqdn
 
 singularity = True
 if any('grid-workernode-c7' in arg for arg in sys.argv):
@@ -27,6 +28,7 @@ for arg in sys.argv:
                 dargs.append('--add-host=cms-aaa-proxy695.gridpp.rl.ac.uk:172.28.1.1')
                 dargs.append('--add-host=cms-aaa-proxy719.gridpp.rl.ac.uk:172.28.1.1')
                 dargs.append('--label=xrootd-local-gateway=true')
+                dargs.append('--env=XrdSecGSISRVNAMES=%s' % getfqdn())
             else:
                 dargs.append('--label=xrootd-local-gateway=false')
         else:
