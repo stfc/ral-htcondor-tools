@@ -47,7 +47,7 @@ for arg in sys.argv:
 
 if '/' in dargs[-1] and not dargs[-1].startswith('-'):
     command = dargs.pop()
-    dargs = dargs + ['nice', '-n 15', command]
+    dargs = dargs + ['nice', '-n 10', command]
 
 p = Popen(dargs, stdout=PIPE, stderr=PIPE)
 output, err = p.communicate()
