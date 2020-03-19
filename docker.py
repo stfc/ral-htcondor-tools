@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/python3
+
 import os
 import re
 import sys
@@ -96,10 +97,8 @@ def args_other_commands(argv):
 def execute(args):
     p = Popen(args, stdout=PIPE, stderr=PIPE)
     output, err = p.communicate()
-    for l in output:
-        sys.stdout.write(l)
-    for l in err:
-        sys.stderr.write(l)
+    sys.stdout.buffer.write(output)
+    sys.stderr.buffer.write(err)
     exit(p.returncode)
 
 

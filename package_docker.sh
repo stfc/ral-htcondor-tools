@@ -16,4 +16,5 @@ fpm \
     --vendor 'Science and Technology Facilties Council' \
     --url 'https://github.com/stfc/ral-htcondor-tools' \
     --description 'Scripts and stuff used on worker nodes with HTCondor at RAL' \
+    --depends 'python3' \
     docker.py
