@@ -42,6 +42,7 @@ for arg in sys.argv:
             dargs.append('--cap-add=SETUID')
             dargs.append('--cap-add=SETGID')
             dargs.append('--cap-add=SYS_CHROOT')
+            dargs.append('--env=SINGULARITYENV_XrdSecGSISRVNAMES=%s' % getfqdn())
     count += 1
 
 
