@@ -29,6 +29,7 @@ for arg in sys.argv:
                 dargs.append('--add-host=cms-aaa-proxy719.gridpp.rl.ac.uk:172.28.1.1')
                 dargs.append('--label=xrootd-local-gateway=true')
                 dargs.append('--env=XrdSecGSISRVNAMES=%s' % getfqdn())
+                dargs.append('--env=SINGULARITYENV_XrdSecGSISRVNAMES=%s' % getfqdn())
             else:
                 dargs.append('--label=xrootd-local-gateway=false')
         else:
@@ -42,7 +43,6 @@ for arg in sys.argv:
             dargs.append('--cap-add=SETUID')
             dargs.append('--cap-add=SETGID')
             dargs.append('--cap-add=SYS_CHROOT')
-            dargs.append('--env=SINGULARITYENV_XrdSecGSISRVNAMES=%s' % getfqdn())
     count += 1
 
 
