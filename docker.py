@@ -30,6 +30,8 @@ for arg in sys.argv:
                 dargs.append('--label=xrootd-local-gateway=true')
                 dargs.append('--env=XrdSecGSISRVNAMES=%s' % getfqdn())
                 dargs.append('--env=SINGULARITYENV_XrdSecGSISRVNAMES=%s' % getfqdn())
+                # ATLAS fix for 21.0.XX release errors with frontier
+                dargs.append('--env=FRONTIER_LOG_FILE=frontier.log')
             else:
                 dargs.append('--label=xrootd-local-gateway=false')
         else:
@@ -43,6 +45,8 @@ for arg in sys.argv:
             dargs.append('--cap-add=SETUID')
             dargs.append('--cap-add=SETGID')
             dargs.append('--cap-add=SYS_CHROOT')
+            # ATLAS fix for 21.0.XX release errors with frontier
+            dargs.append('--env=SINGULARITYENV_FRONTIER_LOG_FILE=frontier.log')
     count += 1
 
 
