@@ -47,6 +47,16 @@ for arg in sys.argv:
             dargs.append('--cap-add=SYS_CHROOT')
             # ATLAS fix for 21.0.XX release errors with frontier
             dargs.append('--env=SINGULARITYENV_FRONTIER_LOG_FILE=frontier.log')
+            # Set security options to allow unprivileged singularity to run
+            # The options are secure as long as the system administrator controls the images and does not allow user
+            # code to run as root, and are generally more secure than adding capabilities.
+            #
+            # Enable unshare to be called (which is needed to create namespaces)
+            dargs.append('--security-opt seccomp=unconfined')
+            # Allow /proc to be mounted in an unprivileged process namespace (as done by singularity exec -p)
+            dargs.append('--security-opt systempaths=unconfined')
+            # Prevent any privilege escalation (prevents setuid programs from running)
+            dargs.append('--security-opt no-new-privileges')
     count += 1
 
 
