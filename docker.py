@@ -25,8 +25,8 @@ for arg in sys.argv:
             if not os.path.isfile('/etc/nogateway') and gateway:
                 dargs.append('--network=ralworker')
                 dargs.append('--add-host=xrootd.echo.stfc.ac.uk:172.28.1.1')
-                dargs.append('--add-host=cms-aaa-proxy695.gridpp.rl.ac.uk:172.28.1.1')
-                dargs.append('--add-host=cms-aaa-proxy719.gridpp.rl.ac.uk:172.28.1.1')
+                dargs.append('--add-host=ceph-gw10.gridpp.rl.ac.uk:172.28.1.1')
+                dargs.append('--add-host=ceph-gw11.gridpp.rl.ac.uk:172.28.1.1')
                 dargs.append('--label=xrootd-local-gateway=true')
                 dargs.append('--env=XrdSecGSISRVNAMES=%s' % getfqdn())
                 dargs.append('--env=SINGULARITYENV_XrdSecGSISRVNAMES=%s' % getfqdn())
