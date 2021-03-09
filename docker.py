@@ -24,9 +24,7 @@ for arg in sys.argv:
             dargs.append('--memory-reservation=%dm' % memory)
             if not os.path.isfile('/etc/nogateway') and gateway:
                 dargs.append('--network=ralworker')
-                dargs.append('--add-host=xrootd.echo.stfc.ac.uk:172.28.1.1')
-                dargs.append('--add-host=ceph-gw10.gridpp.rl.ac.uk:172.28.1.1')
-                dargs.append('--add-host=ceph-gw11.gridpp.rl.ac.uk:172.28.1.1')
+                dargs.append('--add-host=xrootd.echo.stfc.ac.uk ceph-gw10.gridpp.rl.ac.uk ceph-gw11.gridpp.rl.ac.uk:172.28.1.1')
                 dargs.append('--label=xrootd-local-gateway=true')
                 dargs.append('--env=XrdSecGSISRVNAMES=%s' % getfqdn())
                 dargs.append('--env=SINGULARITYENV_XrdSecGSISRVNAMES=%s' % getfqdn())
