@@ -22,6 +22,8 @@ for arg in sys.argv:
             memory = int(m.group(1))
             dargs.append('--memory=%dm' % (memory*2))
             dargs.append('--memory-reservation=%dm' % memory)
+
+        elif arg in ('create', 'run'):
             if not os.path.isfile('/etc/nogateway') and gateway:
                 dargs.append('--network=ralworker')
                 dargs.append('--add-host=xrootd.echo.stfc.ac.uk ceph-gw10.gridpp.rl.ac.uk ceph-gw11.gridpp.rl.ac.uk:172.28.1.1')
@@ -29,34 +31,34 @@ for arg in sys.argv:
                 dargs.append('--env=XrdSecGSISRVNAMES=%s' % getfqdn())
                 dargs.append('--env=SINGULARITYENV_XrdSecGSISRVNAMES=%s' % getfqdn())
                 dargs.append('--env=PANDA_HOSTNAME=%s' % getfqdn())
-                dargs.append('--env=SINGULARITYENV_PANDA_HOSTNAME=%s' % getfqdn())
-                # ATLAS fix for 21.0.XX release errors with frontier
-                dargs.append('--env=FRONTIER_LOG_FILE=frontier.log')
             else:
                 dargs.append('--label=xrootd-local-gateway=false')
+
+            # Allow singularity to work inside of Docker containers
+            if singularity:
+                dargs.append('-eSINGULARITY_BINDPATH=/etc/hosts')
+                dargs.append('--cap-add=SYS_ADMIN')
+                dargs.append('--cap-add=DAC_OVERRIDE')
+                dargs.append('--cap-add=SETUID')
+                dargs.append('--cap-add=SETGID')
+                dargs.append('--cap-add=SYS_CHROOT')
+                dargs.append('--env=SINGULARITYENV_PANDA_HOSTNAME=%s' % getfqdn())
+
+                # ATLAS fix for 21.0.XX release errors with frontier
+                dargs.append('--env=SINGULARITYENV_FRONTIER_LOG_FILE=frontier.log')
+
+                # Set security options to allow unprivileged singularity to run
+                # The options are secure as long as the system administrator controls the images and does not allow user
+                # code to run as root, and are generally more secure than adding capabilities.
+                #
+                # Enable unshare to be called (which is needed to create namespaces)
+                dargs.append('--security-opt seccomp=unconfined')
+                # Allow /proc to be mounted in an unprivileged process namespace (as done by singularity exec -p)
+                dargs.append('--security-opt systempaths=unconfined')
+                # Prevent any privilege escalation (prevents setuid programs from running)
+                dargs.append('--security-opt no-new-privileges')
         else:
             dargs.append(arg)
-
-        # Allow singularity to work inside of Docker containers
-        if arg in ('create', 'run') and singularity:
-            dargs.append('-eSINGULARITY_BINDPATH=/etc/hosts')
-            dargs.append('--cap-add=SYS_ADMIN')
-            dargs.append('--cap-add=DAC_OVERRIDE')
-            dargs.append('--cap-add=SETUID')
-            dargs.append('--cap-add=SETGID')
-            dargs.append('--cap-add=SYS_CHROOT')
-            # ATLAS fix for 21.0.XX release errors with frontier
-            dargs.append('--env=SINGULARITYENV_FRONTIER_LOG_FILE=frontier.log')
-            # Set security options to allow unprivileged singularity to run
-            # The options are secure as long as the system administrator controls the images and does not allow user
-            # code to run as root, and are generally more secure than adding capabilities.
-            #
-            # Enable unshare to be called (which is needed to create namespaces)
-            dargs.append('--security-opt seccomp=unconfined')
-            # Allow /proc to be mounted in an unprivileged process namespace (as done by singularity exec -p)
-            dargs.append('--security-opt systempaths=unconfined')
-            # Prevent any privilege escalation (prevents setuid programs from running)
-            dargs.append('--security-opt no-new-privileges')
     count += 1
 
 
