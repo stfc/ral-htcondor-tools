@@ -38,7 +38,7 @@ for arg in sys.argv:
             dargs.append(arg)
 
         # Allow singularity to work inside of Docker containers
-        if arg == 'run' and singularity:
+        if arg in ('create', 'run') and singularity:
             dargs.append('-eSINGULARITY_BINDPATH=/etc/hosts')
             dargs.append('--cap-add=SYS_ADMIN')
             dargs.append('--cap-add=DAC_OVERRIDE')
