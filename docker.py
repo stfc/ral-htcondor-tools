@@ -15,6 +15,10 @@ if any('atl' in arg for arg in sys.argv) or any('cms' in arg for arg in sys.argv
 
 count = 0
 dargs = ['/usr/bin/sudo', '/usr/bin/docker']
+
+if os.environ.get('DOCKER_WRAPPER_DEBUG'):
+    dargs = ['/bin/echo'] + dargs
+
 for arg in sys.argv:
     if count > 0:
         m = re.search(r'--memory=([\d]+)m', arg)
