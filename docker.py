@@ -34,6 +34,7 @@ for arg in sys.argv:
                 dargs.append('--env=SINGULARITYENV_XrdSecGSISRVNAMES=%s' % getfqdn())
                 dargs.append('--env=PANDA_HOSTNAME=%s' % getfqdn())
                 dargs.append('--env=SINGULARITYENV_PANDA_HOSTNAME=%s' % getfqdn())
+                dargs.append('--env=PILOT_NOKILL=1')
                 # ATLAS fix for 21.0.XX release errors with frontier
                 dargs.append('--env=FRONTIER_LOG_FILE=frontier.log')
             else:
