@@ -34,6 +34,12 @@ def args_create(argv):
     # PANDA enviroment variables for ATLAS
     dargs.append('--env=PANDA_HOSTNAME=%s' % getfqdn())
     dargs.append('--env=SINGULARITYENV_PANDA_HOSTNAME=%s' % getfqdn())
+  
+    # Prevent ATLAS pilot from attempting to kill orphaned processes 
+    # at the end of each job. 
+    # It may trigger a SIGKILL signal to the pilot. 
+    dargs.append('--env=PILOT_NOKILL=1')
+
 
     # Set security options to allow unprivileged singularity to run
     # The options are secure as long as the system administrator controls the images and does not allow user
