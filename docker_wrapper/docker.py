@@ -6,11 +6,11 @@ from subprocess import Popen, PIPE
 from socket import getfqdn
 
 
-def gateway():
+def gateway(argv):
     gateway_needed = False
-    if any('atl' in arg for arg in sys.argv) or \
-       any('cms' in arg for arg in sys.argv) or \
-       any('lhcb' in arg for arg in sys.argv):
+    if any('atl' in arg for arg in argv) or \
+       any('cms' in arg for arg in argv) or \
+       any('lhcb' in arg for arg in argv):
         gateway_needed = True
     return gateway_needed and not os.path.isfile('/etc/nogateway')
 
@@ -52,7 +52,7 @@ def args_create(argv):
     # Prevent any privilege escalation (prevents setuid programs from running)
     #dargs.append('--security-opt no-new-privileges')
 
-    if gateway():
+    if gateway(argv):
         dargs.append('--label=xrootd-local-gateway=true')
         dargs.append('--network=ralworker')
         dargs.append('--add-host=xrootd.echo.stfc.ac.uk ceph-gw10.gridpp.rl.ac.uk ceph-gw11.gridpp.rl.ac.uk:172.28.1.1')
