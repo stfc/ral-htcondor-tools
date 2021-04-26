@@ -53,6 +53,12 @@ class TestDockerWrapper(unittest.TestCase):
             self.assertEqual(docker.args_create(self.atlas_job_args_before), self.atlas_job_args_after)
             self.assertEqual(docker.args_create(self.cms_job_args_before), self.cms_job_args_after)
 
+    def test_args_run(self):
+        with patch('docker.args_create') as mock_args_create:
+            test_args = ['foo', 'bar']
+            docker.args_run(test_args)
+            mock_args_create.assert_called_with(test_args)
+
     def test_args_other_commands(self):
         random_args = [
             ''.join([ choice(ascii_letters) for _ in range(0, randint(3, 9)) ])
