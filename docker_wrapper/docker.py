@@ -103,21 +103,18 @@ def execute(args):
     exit(p.returncode)
 
 
-# ==============================================================================
-#   main
-# ==============================================================================
+if __name__ == '__main__':
+    docker_command = sys.argv[1]
+    dargs = ['/usr/bin/sudo', '/usr/bin/docker', docker_command]
 
-docker_command = sys.argv[1]
-dargs = ['/usr/bin/sudo', '/usr/bin/docker', docker_command]
+    if docker_command == 'create':
+        dargs += args_create(sys.argv[2:])
+    elif docker_command == 'run':
+        dargs += args_run(sys.argv[2:])
+    else:
+        dargs += args_other_commands(sys.argv[2:])
 
-if docker_command == 'create':
-    dargs += args_create(sys.argv[2:])
-elif docker_command == 'run':
-    dargs += args_run(sys.argv[2:])
-else:
-    dargs += args_other_commands(sys.argv[2:])
+    if os.environ.get('DOCKER_WRAPPER_DEBUG'):
+        dargs = ['/bin/echo'] + dargs
 
-if os.environ.get('DOCKER_WRAPPER_DEBUG'):
-    dargs = ['/bin/echo'] + dargs
-
-execute(dargs)
+    execute(dargs)
