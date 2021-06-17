@@ -6,11 +6,11 @@ from subprocess import Popen, PIPE
 from socket import getfqdn
 
 
-def gateway():
+def gateway(argv):
     gateway_needed = False
-    if any('atl' in arg for arg in sys.argv) or \
-       any('cms' in arg for arg in sys.argv) or \
-       any('lhcb' in arg for arg in sys.argv):
+    if any('atl' in arg for arg in argv) or \
+       any('cms' in arg for arg in argv) or \
+       any('lhcb' in arg for arg in argv):
         gateway_needed = True
     return gateway_needed and not os.path.isfile('/etc/nogateway')
 
@@ -52,7 +52,7 @@ def args_create(argv):
     # Prevent any privilege escalation (prevents setuid programs from running)
     #dargs.append('--security-opt no-new-privileges')
 
-    if gateway():
+    if gateway(argv):
         dargs.append('--label=xrootd-local-gateway=true')
         dargs.append('--network=ralworker')
         dargs.append('--add-host=xrootd.echo.stfc.ac.uk ceph-gw10.gridpp.rl.ac.uk ceph-gw11.gridpp.rl.ac.uk:172.28.1.1')
@@ -103,21 +103,18 @@ def execute(args):
     exit(p.returncode)
 
 
-# ==============================================================================
-#   main
-# ==============================================================================
+if __name__ == '__main__':
+    docker_command = sys.argv[1]
+    dargs = ['/usr/bin/sudo', '/usr/bin/docker', docker_command]
 
-docker_command = sys.argv[1]
-dargs = ['/usr/bin/sudo', '/usr/bin/docker', docker_command]
+    if docker_command == 'create':
+        dargs += args_create(sys.argv[2:])
+    elif docker_command == 'run':
+        dargs += args_run(sys.argv[2:])
+    else:
+        dargs += args_other_commands(sys.argv[2:])
 
-if docker_command == 'create':
-    dargs += args_create(sys.argv[2:])
-elif docker_command == 'run':
-    dargs += args_run(sys.argv[2:])
-else:
-    dargs += args_other_commands(sys.argv[2:])
+    if os.environ.get('DOCKER_WRAPPER_DEBUG'):
+        dargs = ['/bin/echo'] + dargs
 
-if os.environ.get('DOCKER_WRAPPER_DEBUG'):
-    dargs = ['/bin/echo'] + dargs
-
-execute(dargs)
+    execute(dargs)
