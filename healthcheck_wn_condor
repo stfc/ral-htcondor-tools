@@ -364,7 +364,7 @@ then
     fi
 
  # Check that containers can be created successfully
-    sudo /usr/bin/docker run --rm -m 6m busybox date >/dev/null 2>&1
+    sudo /usr/bin/docker run --rm -m 7m busybox date >/dev/null 2>&1
     RC=$?
     if [ $RC -ne 0 ]
     then
