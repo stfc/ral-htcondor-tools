@@ -46,11 +46,11 @@ def args_create(argv):
     # code to run as root, and are generally more secure than adding capabilities.
     #
     # Enable unshare to be called (which is needed to create namespaces)
-    dargs.append('--security-opt seccomp=unconfined')
+    dargs.append('--security-opt=seccomp=unconfined')
     # Allow /proc to be mounted in an unprivileged process namespace (as done by singularity exec -p)
-    dargs.append('--security-opt systempaths=unconfined')
+    dargs.append('--security-opt=systempaths=unconfined')
     # Prevent any privilege escalation (prevents setuid programs from running)
-    dargs.append('--security-opt no-new-privileges')
+    dargs.append('--security-opt=no-new-privileges')
     # In addition, the following option is recommended for allowing unprivileged fuse mounts on kernels that support that.
     dargs.append('--device=/dev/fuse')
 
