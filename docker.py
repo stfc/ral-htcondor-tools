@@ -22,7 +22,7 @@ def args_create(argv):
     dargs = []
 
     # Allow singularity to work inside of Docker containers
-    dargs.append('-eSINGULARITY_BINDPATH=/etc/hosts')
+    dargs.append('--env=SINGULARITY_BINDPATH=/etc/hosts')
     dargs.append('--cap-add=SYS_ADMIN')
     dargs.append('--cap-add=DAC_OVERRIDE')
     dargs.append('--cap-add=SETUID')
