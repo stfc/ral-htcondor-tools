@@ -21,13 +21,9 @@ def args_create(argv):
     """
     dargs = []
 
-    # Allow singularity to work inside of Docker containers
+    # Allow singularity to bind local hosts file
     dargs.append('--env=SINGULARITY_BINDPATH=/etc/hosts')
-    dargs.append('--cap-add=SYS_ADMIN')
-    dargs.append('--cap-add=DAC_OVERRIDE')
-    dargs.append('--cap-add=SETUID')
-    dargs.append('--cap-add=SETGID')
-    dargs.append('--cap-add=SYS_CHROOT')
+
     # ATLAS fix for 21.0.XX release errors with frontier
     dargs.append('--env=SINGULARITYENV_FRONTIER_LOG_FILE=frontier.log')
 
@@ -50,7 +46,7 @@ def args_create(argv):
     # Allow /proc to be mounted in an unprivileged process namespace (as done by singularity exec -p)
     dargs.append('--security-opt=systempaths=unconfined')
     # Prevent any privilege escalation (prevents setuid programs from running)
-    #dargs.append('--security-opt=no-new-privileges')
+    dargs.append('--security-opt=no-new-privileges')
     # In addition, the following option is recommended for allowing unprivileged fuse mounts on kernels that support that.
     dargs.append('--device=/dev/fuse')
 
