@@ -11,7 +11,6 @@
 DATE=$(date)
 PROGRAM=`basename $0`
 SHOSTNAME=$(hostname -s)
-NAGIOS_SERVER="130.246.180.225" # Nagios server obviously
 CONDOR_MESG="NODE_IS_HEALTHY = True" # Message to Condor, default OK
 CONDOR_MESG_GATEWAY="True"
 CONDOR_MESG_GATEWAY_STATUS="Healthy"
@@ -84,7 +83,6 @@ function fatal_exit() {
         echo
         return # We want to do all the tests in debug mode, so return for more
     else # no debug, so send nsca and write log message and exit
-        /bin/echo -e "${SHOSTNAME}\tCondor Health check\t${EXIT_CODE}\t${NAGIOS_MESG}"| /usr/sbin/send_nsca -H ${NAGIOS_SERVER} -c /etc/nagios/send_nsca.cfg >/dev/null
         if [  -n "$LOG_MESG" ] # log what we do the syslog.
         then
             $LOGGER $LOG_MESG
@@ -470,6 +468,5 @@ echo $CONDOR_MESG
 echo "NODE_STATUS = \"$NAGIOS_MESG\""
 echo "ECHO_XROOTD_GATEWAY_STATUS = \"$CONDOR_MESG_GATEWAY_STATUS\""
 echo "ECHO_XROOTD_PROXY_STATUS = \"$CONDOR_MESG_PROXY_STATUS\""
-/bin/echo -e "${SHOSTNAME}\tCondor Health check\t${EXIT_CODE}\t${NAGIOS_MESG}" | /usr/sbin/send_nsca -H ${NAGIOS_SERVER} -c /etc/nagios/send_nsca.cfg >/dev/null
 # We don't bother logging non-fatal runs.
 exit ${EXIT_CODE}
