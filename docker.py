@@ -13,10 +13,20 @@ def gateway():
         gateway_needed = True
     return gateway_needed and not os.path.isfile('/etc/nogateway')
 
-def args_create(argv):
-    # Define major Singularity version
-    singularity_major_version = int(3)
+def get_singularity_major_version(argv):
+    # For older Singularity versions we must define Docker capabilities.
+    # Newer Singularity versions rely on security-options
+    # This checks which image we are using and sets Docker create options accordingly
+    # Default Singularity version is Singularity 3.x
+    singularity_major_version = 3
+    for arg in argv:
+        # Check for old image containing Singularity 2
+        if 'grid-workernode' in arg and arg.endswith(':2019-07-02.1'):
+            singularity_major_version = 2
+            break
+    return singularity_major_version
 
+def args_create(argv):
     """
     Build the new list of command line arguments for command
         docker create
@@ -41,14 +51,7 @@ def args_create(argv):
     # It may trigger a SIGKILL signal to the pilot.
     dargs.append('--env=PILOT_NOKILL=1')
 
-    # For older Singularity versions we must define Docker capabilities.
-    # Newer Singularity versions rely on security-options
-    # This checks which image we are using and sets Docker create options accordingly
-    for arg in argv:
-        # Check for old image containing Singularity 2
-        if 'grid-workernode' in arg and arg.endswith(':2019-07-02.1'):
-            singularity_major_version = int(2)
-            break
+    singularity_major_version = get_singularity_major_version(argv)
 
     if singularity_major_version == 2:
         dargs.append('--cap-add=SYS_ADMIN')
