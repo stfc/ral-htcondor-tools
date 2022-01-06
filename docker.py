@@ -29,6 +29,9 @@ def args_create(argv):
     # ATLAS fix for 21.0.XX release errors with frontier
     dargs.append('--env=SINGULARITYENV_FRONTIER_LOG_FILE=frontier.log')
 
+    # Define a parent hostname variable
+    dargs.append('--env=PARENT_HOSTNAME=%s' % getfqdn())
+
     # PANDA enviroment variables for ATLAS
     dargs.append('--env=PANDA_HOSTNAME=%s' % getfqdn())
     dargs.append('--env=SINGULARITYENV_PANDA_HOSTNAME=%s' % getfqdn())
