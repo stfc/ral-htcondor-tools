@@ -8,10 +8,8 @@ from socket import getfqdn
 
 def gateway():
     gateway_needed = False
-    if any('atl' in arg for arg in sys.argv) or \
-       any('cms' in arg for arg in sys.argv) or \
-       any('lhcb' in arg for arg in sys.argv):
-        gateway_needed = True
+    for prefix in ['atl', 'cms', 'lhcb']:
+        gateway_needed = gateway_needed or any(prefix in arg for arg in sys.argv)
     return gateway_needed and not os.path.isfile('/etc/nogateway')
 
 def args_create(argv):
