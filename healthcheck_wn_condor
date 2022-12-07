@@ -172,6 +172,18 @@ if [ ! -f /usr/sbin/xfs_info ]; then
 fi
 # end of xfs_info check
 
+# Check to confirm xfs mountpoint is queryable
+# If it's not, this can lock containers on the workernode and cause
+# the "Zombie container" issue where pilot containers aren't deleted
+debug "Checking if /pool is queryable"
+timeout 5 xfs_info /pool > /dev/null 2>&1
+RC=$?
+if [ $RC -eq 124 ]
+then
+    fatal_exit "Problem: /pool is not queryable and timed out. Likely Docker containers aren't being deleted. Check CVMFS repos"
+fi
+# end check if /pool is queryable
+
 # Check if /pool is formatted correctly
 debug "Checking if /pool is formatted correctly"
 xfs_info /pool | grep ftype=1 > /dev/null 2>&1
