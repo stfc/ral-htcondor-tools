@@ -21,7 +21,7 @@ LOGGER="/usr/bin/env logger" # logger program
 LOG_MESG="Failed healthcheck:" # log message preamble, to be extended in script
 TEST_MESG="" # What the test says.
 TIME_SERVER="time.rl.ac.uk" # The RAL time server
-TEST_FILE="/pool/condor/andrewIsGreat" # A test file name
+TEST_FILE="/pool/condor/healthcheck_wn_test_flagfile" # A test file name
 CG_ENABLED="" # Variable used to check cgroups - its a string
 typeset -i RC=0 # Return code from other scripts / progs
 typeset -i DEBUG_VAL=0 # Are we debugging
@@ -176,11 +176,11 @@ fi
 # If it's not, this can lock containers on the workernode and cause
 # the "Zombie container" issue where pilot containers aren't deleted
 debug "Checking if /pool is queryable"
-timeout 5 xfs_info /pool > /dev/null 2>&1
+timeout 30 xfs_info /pool > /dev/null 2>&1
 RC=$?
 if [ $RC -eq 124 ]
 then
-    fatal_exit "Problem: /pool is not queryable and timed out. Likely Docker containers aren't being deleted. Check CVMFS repos"
+    fatal_exit "Problem: xfs_info timed out. Likely Docker containers aren't being deleted. Check CVMFS repos"
 fi
 # end check if /pool is queryable
 
