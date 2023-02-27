@@ -13,68 +13,49 @@ def gateway():
     return gateway_needed and not os.path.isfile('/etc/nogateway')
 
 def args_create(argv):
-    # Define major Singularity version
-    singularity_major_version = int(3)
-
     """
     Build the new list of command line arguments for command
         docker create
     """
     dargs = []
 
-    # Allow singularity to bind local hosts file
-    dargs.append('--env=SINGULARITY_BINDPATH=/etc/hosts')
+    # Allow apptainer to bind local hosts file
+    dargs.append('--env=APPTAINER_BINDPATH=/etc/hosts')
 
     # ATLAS fix for 21.0.XX release errors with frontier
-    dargs.append('--env=SINGULARITYENV_FRONTIER_LOG_FILE=frontier.log')
+    dargs.append('--env=APPTAINERENV_FRONTIER_LOG_FILE=frontier.log')
 
     # Define a parent hostname variable
     dargs.append('--env=PARENT_HOSTNAME=%s' % getfqdn())
 
     # PANDA enviroment variables for ATLAS
     dargs.append('--env=PANDA_HOSTNAME=%s' % getfqdn())
-    dargs.append('--env=SINGULARITYENV_PANDA_HOSTNAME=%s' % getfqdn())
+    dargs.append('--env=APPTAINERENV_PANDA_HOSTNAME=%s' % getfqdn())
 
     # Prevent ATLAS pilot from attempting to kill orphaned processes
     # at the end of each job.
     # It may trigger a SIGKILL signal to the pilot.
     dargs.append('--env=PILOT_NOKILL=1')
 
-    # For older Singularity versions we must define Docker capabilities.
-    # Newer Singularity versions rely on security-options
-    # This checks which image we are using and sets Docker create options accordingly
-    for arg in argv:
-        # Check for old image containing Singularity 2
-        if 'grid-workernode' in arg and arg.endswith(':2019-07-02.1'):
-            singularity_major_version = int(2)
-            break
-
-    if singularity_major_version == 2:
-        dargs.append('--cap-add=SYS_ADMIN')
-        dargs.append('--cap-add=DAC_OVERRIDE')
-        dargs.append('--cap-add=SETUID')
-        dargs.append('--cap-add=SETGID')
-        dargs.append('--cap-add=SYS_CHROOT')
-    elif singularity_major_version == 3:
-        # Set security options to allow unprivileged singularity to run
-        # The options are secure as long as the system administrator controls the images and does not allow user
-        # code to run as root, and are generally more secure than adding capabilities.
-        #
-        # Enable unshare to be called (which is needed to create namespaces)
-        dargs.append('--security-opt=seccomp=unconfined')
-        # Allow /proc to be mounted in an unprivileged process namespace (as done by singularity exec -p)
-        dargs.append('--security-opt=systempaths=unconfined')
-        # Prevent any privilege escalation (prevents setuid programs from running)
-        dargs.append('--security-opt=no-new-privileges')
-        # In addition, the following option is recommended for allowing unprivileged fuse mounts on kernels that support that.
-        dargs.append('--device=/dev/fuse')
+    # Set security options to allow unprivileged apptainer to run
+    # The options are secure as long as the system administrator controls the images and does not allow user
+    # code to run as root, and are generally more secure than adding capabilities.
+    #
+    # Enable unshare to be called (which is needed to create namespaces)
+    dargs.append('--security-opt=seccomp=unconfined')
+    # Allow /proc to be mounted in an unprivileged process namespace (as done by apptainer exec -p)
+    dargs.append('--security-opt=systempaths=unconfined')
+    # Prevent any privilege escalation (prevents setuid programs from running)
+    dargs.append('--security-opt=no-new-privileges')
+    # In addition, the following option is recommended for allowing unprivileged fuse mounts on kernels that support that.
+    dargs.append('--device=/dev/fuse')
 
     if gateway():
         dargs.append('--label=xrootd-local-gateway=true')
         dargs.append('--network=ralworker')
         dargs.append('--add-host=xrootd.echo.stfc.ac.uk ceph-gw10.gridpp.rl.ac.uk ceph-gw11.gridpp.rl.ac.uk:172.28.1.1')
         dargs.append('--env=XrdSecGSISRVNAMES=%s' % getfqdn())
-        dargs.append('--env=SINGULARITYENV_XrdSecGSISRVNAMES=%s' % getfqdn())
+        dargs.append('--env=APPTAINERENV_XrdSecGSISRVNAMES=%s' % getfqdn())
         # ATLAS fix for 21.0.XX release errors with frontier
         dargs.append('--env=FRONTIER_LOG_FILE=frontier.log')
     else:
