@@ -54,6 +54,8 @@ def args_create(argv):
         dargs.append('--label=xrootd-local-gateway=true')
         dargs.append('--network=ralworker')
         dargs.append('--add-host=xrootd.echo.stfc.ac.uk ceph-gw10.gridpp.rl.ac.uk ceph-gw11.gridpp.rl.ac.uk:172.28.1.1')
+        dargs.append('--env=XrdSecGSISRVNAMES=%s' % getfqdn())
+        dargs.append('--env=APPTAINERENV_XrdSecGSISRVNAMES=%s' % getfqdn())
         # ATLAS fix for 21.0.XX release errors with frontier
         dargs.append('--env=FRONTIER_LOG_FILE=frontier.log')
     else:
