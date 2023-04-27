@@ -244,17 +244,17 @@ fi
 debug "Checking  CVMFS grid.cern.ch"
 # This test depends  on the nagios check_cvmfs script being available,
 # so check first
-if [ ! -f /usr/lib/nagios/plugins/tier1/check_cvmfs2.sh ]
+if [ ! -f /usr/local/bin/check_cvmfs2.sh ]
 then
     debug "script, /usr/lib64/nagios/plugins/check_disk not available"
     fatal_exit "Problem: No check cvmfs script available"
 fi
 if [ $DEBUG_VAL -gt 0 ]
 then
-    /usr/lib/nagios/plugins/tier1/check_cvmfs2.sh grid.cern.ch
+    /usr/local/bin/check_cvmfs2.sh grid.cern.ch
     RC=$?
 else
-    /usr/lib/nagios/plugins/tier1/check_cvmfs2.sh grid.cern.ch  >/dev/null 2>&1
+    /usr/local/bin/check_cvmfs2.sh grid.cern.ch  >/dev/null 2>&1
     RC=$?
 fi
 
@@ -432,10 +432,10 @@ do
     debug "Checking $vo"
     if [ $DEBUG_VAL -gt 0 ]
     then
-        /usr/lib/nagios/plugins/tier1/check_cvmfs2.sh $vo
+        /usr/local/bin/check_cvmfs2.sh $vo
         RC=$?
     else
-        /usr/lib/nagios/plugins/tier1/check_cvmfs2.sh $vo >/dev/null 2>&1
+        /usr/local/bin/check_cvmfs2.sh $vo >/dev/null 2>&1
         RC=$?
     fi
 
