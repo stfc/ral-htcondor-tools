@@ -21,9 +21,13 @@ def args_create(argv):
 
     # Allow apptainer to bind local hosts file
     dargs.append('--env=APPTAINER_BINDPATH=/etc/hosts')
+    # Singularity equivalent for backwards compatibility
+    dargs.append('--env=SINGULARITY_BINDPATH=/etc/hosts')
 
     # ATLAS fix for 21.0.XX release errors with frontier
     dargs.append('--env=APPTAINERENV_FRONTIER_LOG_FILE=frontier.log')
+    # Singularity equivalent for backwards compatibility
+    dargs.append('--env=SINGULARITYENV_FRONTIER_LOG_FILE=frontier.log')
 
     # Define a parent hostname variable
     dargs.append('--env=PARENT_HOSTNAME=%s' % getfqdn())
@@ -31,6 +35,8 @@ def args_create(argv):
     # PANDA enviroment variables for ATLAS
     dargs.append('--env=PANDA_HOSTNAME=%s' % getfqdn())
     dargs.append('--env=APPTAINERENV_PANDA_HOSTNAME=%s' % getfqdn())
+    # Singularity equivalent for backwards compatibility
+    dargs.append('--env=SINGULARITYENV_PANDA_HOSTNAME=%s' % getfqdn())
 
     # Prevent ATLAS pilot from attempting to kill orphaned processes
     # at the end of each job.
@@ -54,6 +60,10 @@ def args_create(argv):
         dargs.append('--label=xrootd-local-gateway=true')
         dargs.append('--network=ralworker')
         dargs.append('--add-host=xrootd.echo.stfc.ac.uk ceph-gw10.gridpp.rl.ac.uk ceph-gw11.gridpp.rl.ac.uk:172.28.1.1')
+        dargs.append('--env=XrdSecGSISRVNAMES=%s' % getfqdn())
+        dargs.append('--env=APPTAINERENV_XrdSecGSISRVNAMES=%s' % getfqdn())
+        # Singularity equivalent for backwards compatibility
+        dargs.append('--env=SINGULARITYENV_XrdSecGSISRVNAMES=%s' % getfqdn())
         # ATLAS fix for 21.0.XX release errors with frontier
         dargs.append('--env=FRONTIER_LOG_FILE=frontier.log')
     else:
