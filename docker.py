@@ -74,7 +74,7 @@ def args_create(argv):
         m = re.search(r'--memory=([\d]+)m', arg)
         if m:
             memory = int(m.group(1))
-            dargs.append('--memory=%dm' % (memory*2))
+            dargs.append('--memory=%dm' % (memory*3))
             dargs.append('--memory-reservation=%dm' % memory)
         else:
             dargs.append(arg)
