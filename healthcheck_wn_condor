@@ -14,6 +14,8 @@ SHOSTNAME=$(hostname -s)
 CONDOR_MESG="NODE_IS_HEALTHY = True" # Message to Condor, default OK
 CONDOR_MESG_GATEWAY="True"
 CONDOR_MESG_GATEWAY_STATUS="Healthy"
+CONDOR_MESG_PROXY="True"
+CONDOR_MESG_PROXY_STATUS="Healthy"
 NAGIOS_MESG="All_OK" # Message to nagios, default OK
 LOGGER="/usr/bin/env logger" # logger program
 LOG_MESG="Failed healthcheck:" # log message preamble, to be extended in script
@@ -401,6 +403,25 @@ then
     fi
 fi
 
+# Check if local Echo xrootd proxy is running
+
+if [ -f "/usr/bin/docker" ]
+then
+    { gwstatus=`sudo /usr/bin/docker inspect --format '{{ .State.Health.Status }}' xrootd-proxy`; } 2>/dev/null
+    RC=$?
+    if [ $RC -ne 0 ]; then
+        TEST_MESG="${TEST_MESG} Problem: local xrootd proxy"
+        CONDOR_MESG_PROXY="(WantEchoXrootd =?= False || WantEchoXrootd =?= UNDEFINED)"
+        CONDOR_MESG_PROXY_STATUS="None"
+    else
+        if [ $gwstatus == "unhealthy" ]; then
+            TEST_MESG="${TEST_MESG} Problem: local xrootd proxy"
+            CONDOR_MESG_PROXY="(WantEchoXrootd =?= False || WantEchoXrootd =?= UNDEFINED)"
+            CONDOR_MESG_PROXY_STATUS="Unhealthy"
+        fi
+    fi
+fi
+
 ## Non-fatal checks these don't call fatal_exit but simply set NAGIOS_MESG,
 ## CONDOR_MESG and EXIT_CODE and exit
 
@@ -449,11 +470,15 @@ fi
 # Handle status of local xrootd gateway
 CONDOR_MESG="${CONDOR_MESG} && ${CONDOR_MESG_GATEWAY}"
 
+# Handle status of local xrootd proxy
+CONDOR_MESG="${CONDOR_MESG} && ${CONDOR_MESG_PROXY}"
+
 # Now just do an exit with correct codes..
 debug "NAGIOS_MESG  $NAGIOS_MESG"
 debug "EXIT_CODE    $EXIT_CODE"
 echo $CONDOR_MESG
 echo "NODE_STATUS = \"$NAGIOS_MESG\""
 echo "ECHO_XROOTD_GATEWAY_STATUS = \"$CONDOR_MESG_GATEWAY_STATUS\""
+echo "ECHO_XROOTD_PROXY_STATUS = \"$CONDOR_MESG_PROXY_STATUS\""
 # We don't bother logging non-fatal runs.
 exit ${EXIT_CODE}
