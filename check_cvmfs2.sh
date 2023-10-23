@@ -1,11 +1,23 @@
 #!/bin/bash
 # CernVM-FS check for Nagios
-# Version 1.9, last modified: 11.02.2015
+# Version 1.13, last modified: 31.01.2023
 # Bugs and comments to Jakob Blomer (jblomer@cern.ch)
 #
 # ChangeLog
-# 1.9 - 11.02.2015:
+# 1.13 - 31.01.2023
+#    - Add -c option to skip cache checks (for osgstorage.org)
+#    - Add -M option to Customize the memory check threshold
+# 1.12 - 05.11.2021
+#    - Add -p parameter for I/O error retention period
+# 1.11 - 16.03.2021
+#    - Customize max fill ration (contributed by NIKHEF)
+# 1.10 - 19.06.2017
+#    - Check for cleanup rate within the last 24 hours
+# 1.9 - 13.02.2015:
+#    - Use --max-time 3*$connect_timeout option in curl requests
+#    - Add fallback proxies to network checks
 #    - Add -t(imeout) parameter to avoid hanging check.  Defaults to 2 minutes.
+#    - Add -i(node check) parameter to check for inodes overflowing 32bit
 # 1.8:
 #    - resolve auto proxy
 # 1.7:
@@ -17,7 +29,7 @@
 #    - return immediately if transport endpoint is not connected
 #    - start of ChangeLog
 
-VERSION=1.9
+VERSION=1.13
 
 STATUS_OK=0
 STATUS_WARNING=1     # Check timed out or CernVM-FS resource consumption high or
@@ -28,17 +40,27 @@ STATUS_UNKNOWN=3     # Internal or usage error
 BRIEF_INFO="OK"
 RETURN_STATUS=$STATUS_OK
 
+MAX_FILL_RATIO=95
 TIMEOUT_SECONDS=120
-
+IO_ERROR_PERIOD=180 # By default, ignore I/O errors older than 3 hours
+MEM_THRESHOLD=50
 
 usage() {
-   /bin/echo "Usage:   $0 [-t <seconds>][-m] [-n] <repository name> [expected cvmfs version]"
+   /bin/echo "Usage:   $0 [-t <seconds>][-m] [-n] [-f fill_ratio] [-i] [-p minutes] <repository name> [expected cvmfs version]"
    /bin/echo "Example: $0 -t 60 -m -n atlas.cern.ch 2.0.4"
    /bin/echo "Options:"
    /bin/echo "  -t  second after which the check times out with a warning (default: ${TIMEOUT_SECONDS})"
    /bin/echo "  -n  run extended network checks"
    /bin/echo "  -m  check memory consumption of the cvmfs2 process"
    /bin/echo "      (less than 50M or 1% of available memory)"
+   /bin/echo "  -M <threshold MB> set the threshold for memory consumption"
+   /bin/echo "  -f  set max fill ratio warning level (default 95)"
+   /bin/echo "  -i  check if inodes exceed 32bit which can break 32bit programs"
+   /bin/echo "      that use the non-64bit glibc file system interface"
+   /bin/echo "  -p  ignore I/O errors older than the given number of minutes"
+   /bin/echo "       (default: $IO_ERROR_PERIOD, set to zero to always report I/O errors)"
+   /bin/echo "       the parameter has no effect on CernVM-FS < 2.9"
+   /bin/echo "  -c  ignore cache issues (for repositories that are known to have few cache hits)"
 }
 
 version() {
@@ -85,13 +107,25 @@ get_xattr() {
    fi
 }
 
+# Try reading the xattr value from current directory, use the provided default
+# if the attribute is not available
+try_get_xattr() {
+   XATTR_NAME=$1
+   local default="$2"
 
+   XATTR_VALUE=`/usr/bin/attr -q -g $XATTR_NAME . 2>/dev/null`
+   if [ $? -ne 0 ]; then
+      XATTR_VALUE="$default"
+   fi
+}
 
 
 # Option handling
 OPT_NETWORK_CHECK=0
 OPT_MEMORY_CHECK=0
-while getopts "hVvt:nm" opt; do
+OPT_INODE_CHECK=0
+OPT_IGNORE_CACHE=0
+while getopts "hVvt:nmM:f:ip:c" opt; do
   case $opt in
     h)
       help
@@ -106,12 +140,31 @@ while getopts "hVvt:nm" opt; do
     ;;
     t)
       TIMEOUT_SECONDS="$(/bin/echo "$OPTARG" | /usr/bin/tr -c -d 0-9)"
+      if [ "x${TIMEOUT_SECONDS}" = "x" ]; then
+        /bin/echo "SERVICE STATUS: Invalid timeout argument: $OPTARG"
+        exit $STATUS_UNKNOWN
+      fi
     ;;
     n)
       OPT_NETWORK_CHECK=1
     ;;
     m)
       OPT_MEMORY_CHECK=1
+    ;;
+    M)
+      MEM_THRESHOLD="$OPTARG"
+    ;;
+    f)
+      MAX_FILL_RATIO="$OPTARG"
+    ;;
+    i)
+      OPT_INODE_CHECK=1
+    ;;
+    p)
+       IO_ERROR_PERIOD="$OPTARG"
+    ;;
+    c)
+      OPT_IGNORE_CACHE=1
     ;;
     *)
       /bin/echo "SERVICE STATUS: Invalid option: $1"
@@ -178,13 +231,23 @@ do_check() {
       exit $STATUS_UNKNOWN
     fi
   fi
+  INODE_MAX=0
+  if [ $OPT_INODE_CHECK -eq 1 ]; then
+    get_xattr inode_max; INODE_MAX=$XATTR_VALUE
+  fi
+  # The extended attribute was added in cvmfs 2.4.  The -1 value means that
+  # querying for the cleanup rate is not supported
+  try_get_xattr ncleanup24 -1; NCLEANUP24=$XATTR_VALUE
+  # The timestamp_last_ioerr extended attribute was added in cvmfs 2.9.
+  # A value of zero
+  try_get_xattr timestamp_last_ioerr 0; TIMESTAMP_LAST_IOERR=$XATTR_VALUE
 
   # Network settings;  TODO: currently configured values required
   if [ $OPT_NETWORK_CHECK -eq 1 ]; then
     if [ ! -z "$CVMFS_HTTP_PROXY" -a ! -z "$CVMFS_SERVER_URL"  ]; then
       CVMFS_HOSTS=`/bin/echo "$CVMFS_SERVER_URL" | /bin/sed 's/,\|;/ /g' \
          | sed s/@org@/$ORG/g | sed s/@fqrn@/$FQRN/g`
-      CVMFS_PROXIES=`/bin/echo "$CVMFS_HTTP_PROXY" | /bin/sed 's/;\||/ /g'`
+      CVMFS_PROXIES=`/bin/echo "$CVMFS_HTTP_PROXY $CVMFS_FALLBACK_PROXY" | /bin/sed 's/;\||/ /g'`
       CVMFS_REAL_PROXIES=
       for proxy in $CVMFS_PROXIES; do
         if [ "x$proxy" = "xauto" ]; then
@@ -219,8 +282,18 @@ do_check() {
 
   # Check for previously detected I/O errors
   if [ $NIOERR -gt 0 ]; then
-    append_info "$NIOERR I/O errors detected"
-    RETURN_STATUS=$STATUS_WARNING
+    REPORT_IOERR=1
+    if [ $TIMESTAMP_LAST_IOERR -gt 0 -a $IO_ERROR_PERIOD -gt 0 ]; then
+      NOW=$(date +%s)
+      if [ $(( (NOW - TIMESTAMP_LAST_IOERR) / 60 )) -gt $IO_ERROR_PERIOD ]; then
+        REPORT_IOERR=0
+      fi
+    fi
+
+    if [ $REPORT_IOERR -eq 1 ]; then
+      append_info "$NIOERR I/O errors detected"
+      RETURN_STATUS=$STATUS_WARNING
+    fi
   fi
 
   # Check for number of open file descriptors
@@ -233,7 +306,7 @@ do_check() {
   # Check for memory footprint (< 50M or < 1% of available memory?)
   if [ $OPT_MEMORY_CHECK -eq 1 ]; then
     MEM=$[$MEMKB/1024]
-    if [ $MEM -gt 50 ]; then
+    if [ $MEM -gt "$MEM_THRESHOLD" ]; then
       MEMTOTAL=`/bin/grep MemTotal /proc/meminfo | /bin/awk '{print $2}'`
       # More than 1% of total memory?
       if [ $[$MEMKB*100] -gt $MEMTOTAL ]; then
@@ -249,17 +322,19 @@ do_check() {
     RETURN_STATUS=$STATUS_WARNING
   fi
 
-  # Check for free space on cache partition
-  DF_CACHE=`/bin/df -P "$CVMFS_CACHE_BASE"`
-  if [ $? -ne 0 ]; then
-    append_info "failed to run /bin/df -P $CVMFS_CACHE_BASE"
-    RETURN_STATUS=$STATUS_CRITICAL
-  else
-    FILL_RATIO=`/bin/echo "$DF_CACHE" | /usr/bin/tail -n1 | \
-                /bin/awk '{print $5}' | /usr/bin/tr -Cd [:digit:]`
-    if [ $FILL_RATIO -gt 95 ]; then
-      append_info "space on cache partition low"
-      RETURN_STATUS=$STATUS_WARNING
+  if [ $OPT_IGNORE_CACHE -eq 0 ]; then
+    # Check for free space on cache partition
+    DF_CACHE=`/bin/df -P "$CVMFS_CACHE_BASE"`
+    if [ $? -ne 0 ]; then
+      append_info "failed to run /bin/df -P $CVMFS_CACHE_BASE"
+      RETURN_STATUS=$STATUS_CRITICAL
+    else
+      FILL_RATIO=`/bin/echo "$DF_CACHE" | /usr/bin/tail -n1 | \
+                  /bin/awk '{print $5}' | /usr/bin/tr -Cd [:digit:]`
+      if [ $FILL_RATIO -gt $MAX_FILL_RATIO ]; then
+        append_info "space on cache partition low"
+        RETURN_STATUS=$STATUS_WARNING
+      fi
     fi
   fi
 
@@ -277,7 +352,9 @@ do_check() {
           TIMEOUT=$CVMFS_TIMEOUT_DIRECT
         fi
         URL="${HOST}/.cvmfspublished"
-        $PROXY_ENV /usr/bin/curl -H "Pragma:" -f --connect-timeout $TIMEOUT $URL > \
+        $PROXY_ENV /usr/bin/curl -H "Pragma:" -f \
+          --max-time $((3*${TIMEOUT})) \
+          --connect-timeout $TIMEOUT $URL > \
           /dev/null 2>&1
         if [ $? -ne 0 ]; then
           append_info "offline ($HOST via $PROXY)"
@@ -285,6 +362,23 @@ do_check() {
         fi
       done
     done
+  fi
+
+  # Check for inode numbers >32bit
+  if [ $OPT_INODE_CHECK -eq 1 ]; then
+    OVERFLOW=$(/usr/bin/perl -e "$INODE_MAX > 2147483647 ? print 1 : print 0" 2>/dev/null)
+    if [ $OVERFLOW -eq 1 ]; then
+      append_info "inodes exceed 32bit, some 32bit applications might break"
+      RETURN_STATUS=$STATUS_WARNING
+    fi
+  fi
+
+  if [ $OPT_IGNORE_CACHE -eq 0 ]; then
+    # Check for number of cache cleanups within the last 24 hours
+    if [ $NCLEANUP24 -gt 24 ]; then
+      append_info "frequent cache cleanups, cache might be undersized"
+      RETURN_STATUS=$STATUS_WARNING
+    fi
   fi
 
   if [ -f "/cvmfs/${REPOSITORY}/.cvmfsdirtab" ]; then
@@ -300,11 +394,12 @@ do_check() {
 }
 
 
-# Guard the checks by a timeout
+# Guard the check by a timeout
 do_check &
 PID=$!
 START_TIME=$SECONDS
 while [ $((${SECONDS}-${START_TIME})) -lt ${TIMEOUT_SECONDS} ]; do
+  /bin/sleep 1
   kill -s 0 $PID >/dev/null 2>&1
   if [ $? -ne 0 ]; then
     wait $PID
@@ -312,6 +407,6 @@ while [ $((${SECONDS}-${START_TIME})) -lt ${TIMEOUT_SECONDS} ]; do
   fi
 done
 
-kill -s 9 $PID
+kill -s 9 $PID >/dev/null
 /bin/echo "SERVICE STATUS: timeout after ${TIMEOUT_SECONDS}s"
 exit $STATUS_WARNING
