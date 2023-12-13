@@ -155,13 +155,16 @@ then
 fi
 # end of time check.
 
-# Check if /pool is a mountpoint
-debug "Checking if /pool is a mountpoint"
-mountpoint /pool > /dev/null 2>&1
-RC=$?
-if [ $RC -gt 0 ]
-then
-    fatal_exit "Problem: /pool is not a mountpoint"
+# Check if /pool is a mountpoint on physical workernodes
+if [[ $VIRTUAL_WORKER -ne 1 ]]
+    then
+    debug "Checking if /pool is a mountpoint"
+    mountpoint /pool > /dev/null 2>&1
+    RC=$?
+    if [ $RC -gt 0 ]
+    then
+        fatal_exit "Problem: /pool is not a mountpoint"
+    fi
 fi
 # end of mountpoint check
 
@@ -184,13 +187,16 @@ then
 fi
 # end check if /pool is queryable
 
-# Check if /pool is formatted correctly
-debug "Checking if /pool is formatted correctly"
-xfs_info /pool | grep ftype=1 > /dev/null 2>&1
-RC=$?
-if [ $RC -gt 0 ]
-then
-    fatal_exit "Problem: /pool is not on a properly formatted XFS filesystem"
+# Check if /pool is formatted correctly on physical workernodes
+if [[ $VIRTUAL_WORKER -ne 1 ]]
+    then
+    debug "Checking if /pool is formatted correctly"
+    xfs_info /pool | grep ftype=1 > /dev/null 2>&1
+    RC=$?
+    if [ $RC -gt 0 ]
+    then
+        fatal_exit "Problem: /pool is not on a properly formatted XFS filesystem"
+    fi
 fi
 # end check if /pool is formatted correctly
 
