@@ -328,7 +328,7 @@ done
 
 if [ ! -z "$TEST_MESG" ]
 then
-    fatal_ext $TEST_MESG
+    fatal_exit $TEST_MESG
 fi
 # End of filesystems check
 
