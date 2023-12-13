@@ -297,14 +297,14 @@ fi
 
 # Check all other filesystems have at least 5% free.
 # Note that this purposely does not check cvmfs or rather fuse
-# And there is an exception for /etc/nubes-context
+# And there is an exception for /etc/context
 
 FILE_SYSTEMS=`df -lh -x fuse | sed -ne '/^\/dev/s/^.*\% \([^ ]*\)$/\1/p'`
 debug "Testing local filesystems for min 5% free space"
 for dir in ${FILE_SYSTEMS[@]}
 do
- # We want to skip nubes-context cos it is always 100%
-    if [ $dir == "/etc/nubes-context" ]
+    # We want to skip nubes-context (/mnt/context) cos it is always 100%
+    if [ $dir == "/mnt/context" ]
     then
         debug "Skipping $dir because we dont want it"
         continue
