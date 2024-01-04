@@ -96,7 +96,7 @@ function fatal_exit() {
 debug "starting ${PROGRAM} on ${DATE}"
 
 # Check if we are on a vm
-if ( grep -q workernode-virtual /etc/motd )
+if [[ "$(ccm /system/personality/name)" =~ "virtual" ]]
 then
     VIRTUAL_WORKER=1 # Is the node a virtual node?
     UPTIME_TEST_VAL=2
