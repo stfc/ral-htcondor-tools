@@ -297,7 +297,7 @@ fi
 
 # Check all other filesystems have at least 5% free.
 # Note that this purposely does not check cvmfs or rather fuse
-# And there is an exception for /etc/context
+# And there is an exception for /mnt/context
 
 FILE_SYSTEMS=`df -lh -x fuse | sed -ne '/^\/dev/s/^.*\% \([^ ]*\)$/\1/p'`
 debug "Testing local filesystems for min 5% free space"
