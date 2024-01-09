@@ -97,7 +97,8 @@ function fatal_exit() {
 debug "starting ${PROGRAM} on ${DATE}"
 
 # Check if we are on a vm
-if [[ "$(ccm /system/personality/name)" =~ "virtual" ]]
+# OpenStack VM's can have it's metadata queried using the below curl
+if curl --max-time 5 -s http://169.254.169.254/openstack/latest/meta_data.json -o /dev/null
 then
     VIRTUAL_WORKER=1 # Is the node a virtual node?
     UPTIME_TEST_VAL=2
