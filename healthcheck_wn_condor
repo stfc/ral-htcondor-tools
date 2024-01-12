@@ -22,6 +22,7 @@ LOG_MESG="Failed healthcheck:" # log message preamble, to be extended in script
 TEST_MESG="" # What the test says.
 TIME_SERVER="time.rl.ac.uk" # The RAL time server
 TEST_FILE="/pool/condor/healthcheck_wn_test_flagfile" # A test file name
+POOL_MOUNTPOINT=$(df --output=target /pool | tail -n 1) # Command to find mountpoint of /pool
 CG_ENABLED="" # Variable used to check cgroups - its a string
 typeset -i RC=0 # Return code from other scripts / progs
 typeset -i DEBUG_VAL=0 # Are we debugging
@@ -96,7 +97,8 @@ function fatal_exit() {
 debug "starting ${PROGRAM} on ${DATE}"
 
 # Check if we are on a vm
-if ( grep -q workernode-virtual /etc/motd )
+# OpenStack VM's can have it's metadata queried using the below curl
+if curl --max-time 5 -s http://169.254.169.254/openstack/latest/meta_data.json -o /dev/null
 then
     VIRTUAL_WORKER=1 # Is the node a virtual node?
     UPTIME_TEST_VAL=2
@@ -155,13 +157,16 @@ then
 fi
 # end of time check.
 
-# Check if /pool is a mountpoint
-debug "Checking if /pool is a mountpoint"
-mountpoint /pool > /dev/null 2>&1
-RC=$?
-if [ $RC -gt 0 ]
-then
-    fatal_exit "Problem: /pool is not a mountpoint"
+# Check if /pool is a mountpoint on physical workernodes
+if [[ $VIRTUAL_WORKER -ne 1 ]]
+    then
+    debug "Checking if /pool is a mountpoint"
+    mountpoint /pool > /dev/null 2>&1
+    RC=$?
+    if [ $RC -gt 0 ]
+    then
+        fatal_exit "Problem: /pool is not a mountpoint"
+    fi
 fi
 # end of mountpoint check
 
@@ -184,13 +189,29 @@ then
 fi
 # end check if /pool is queryable
 
-# Check if /pool is formatted correctly
+# Check if /pool is formatted correctly on workernodes
 debug "Checking if /pool is formatted correctly"
-xfs_info /pool | grep ftype=1 > /dev/null 2>&1
+# Check what format /pool is.
+df -T /pool | tail -n 1 | awk '{print $2}' > /dev/null 2>&1
 RC=$?
-if [ $RC -gt 0 ]
+if [[ $RC -eq "xfs" ]]
 then
-    fatal_exit "Problem: /pool is not on a properly formatted XFS filesystem"
+    debug "/pool is xfs formatted, continuing"
+    # Check if /pool is mountpoint or pool is directory
+    debug "The target mountpoint of /pool is $POOL_MOUNTPOINT"
+    xfs_info $POOL_MOUNTPOINT | grep ftype=1 > /dev/null 2>&1
+    RC=$?
+    if [ $RC -gt 0 ]
+    then
+        fatal_exit "Problem: $POOL_MOUNTPOINT is not on a properly formatted XFS filesystem"
+    fi
+elif [[ $RC -eq "ext4" ]]
+then
+    # Allow /pool to be on ext4 filesystem
+    # This is historical, however still supported
+    debug "$POOL_MOUNTPOINT is ext4 formatted, continuing"
+else
+    fatal_exit "Problem: /pool is not on a properly formatted filesystem (ext4 or xfs)"
 fi
 # end check if /pool is formatted correctly
 
@@ -291,14 +312,14 @@ fi
 
 # Check all other filesystems have at least 5% free.
 # Note that this purposely does not check cvmfs or rather fuse
-# And there is an exception for /etc/nubes-context
+# And there is an exception for /mnt/context
 
 FILE_SYSTEMS=`df -lh -x fuse | sed -ne '/^\/dev/s/^.*\% \([^ ]*\)$/\1/p'`
 debug "Testing local filesystems for min 5% free space"
 for dir in ${FILE_SYSTEMS[@]}
 do
- # We want to skip nubes-context cos it is always 100%
-    if [ $dir == "/etc/nubes-context" ]
+    # We want to skip nubes-context (/mnt/context) cos it is always 100%
+    if [ $dir == "/mnt/context" ]
     then
         debug "Skipping $dir because we dont want it"
         continue
@@ -322,7 +343,7 @@ done
 
 if [ ! -z "$TEST_MESG" ]
 then
-    fatal_ext $TEST_MESG
+    fatal_exit $TEST_MESG
 fi
 # End of filesystems check
 
