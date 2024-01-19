@@ -66,6 +66,10 @@ def args_create(argv):
         dargs.append('--env=SINGULARITYENV_XrdSecGSISRVNAMES=%s' % getfqdn())
         # ATLAS fix for 21.0.XX release errors with frontier
         dargs.append('--env=FRONTIER_LOG_FILE=frontier.log')
+        #Increase timeout to prevent vector read errors
+        dargs.append('--env=XRD_STREAMTIMEOUT=300')
+        dargs.append('--env=APPTAINERENV_XRD_STREAMTIMEOUT=300')
+        dargs.append('--env=SINGULARITYENV_XRD_STREAMTIMEOUT=300')
     else:
         dargs.append('--label=xrootd-local-gateway=false')
 
