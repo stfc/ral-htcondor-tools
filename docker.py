@@ -12,6 +12,29 @@ def gateway():
         gateway_needed = gateway_needed or any(prefix in arg for arg in sys.argv)
     return gateway_needed and not os.path.isfile('/etc/nogateway')
 
+def get_primary_ipv6():
+    # Get the default route interface
+    route_info = Popen(['ip', '-6', 'route', 'show', 'default'], stdout=PIPE, stderr=PIPE)
+    stdout, _ = route_info.communicate()
+    route_output = stdout.decode().split()
+
+    # Ensure there is enough data to extract the interface
+    if len(route_output) < 5:
+        return None
+
+    default_interface = route_output[4]
+
+    # Get IPv6 addresses for the default interface
+    addr_info = Popen(['ip', '-6', 'addr', 'show', 'dev', default_interface], stdout=PIPE, stderr=PIPE)
+    stdout, _ = addr_info.communicate()
+    addr_lines = stdout.decode().split('\n')
+
+    # Filter out the primary IPv6 address
+    for line in addr_lines:
+        if 'inet6' in line and 'global' in line:
+            return line.split()[1].split('/')[0]
+    return None
+
 def args_create(argv):
     """
     Build the new list of command line arguments for command
@@ -60,6 +83,11 @@ def args_create(argv):
         dargs.append('--label=xrootd-local-gateway=true')
         dargs.append('--network=ralworker')
         dargs.append('--add-host=xrootd.echo.stfc.ac.uk ceph-gw10.gridpp.rl.ac.uk ceph-gw11.gridpp.rl.ac.uk:172.28.1.1')
+        # Call function to capture primary IPv6 address and assign xrootd alias to local containers IPv6 address.
+        primary_ipv6 = get_primary_ipv6()
+        if primary_ipv6:
+            primary_ipv6 = primary_ipv6.rstrip(':')
+            dargs.append('--add-host=xrootd.echo.stfc.ac.uk ceph-gw10.gridpp.rl.ac.uk ceph-gw11.gridpp.rl.ac.uk:{}{}'.format(primary_ipv6, ':1000:2'))
         dargs.append('--env=XrdSecGSISRVNAMES=%s' % getfqdn())
         dargs.append('--env=APPTAINERENV_XrdSecGSISRVNAMES=%s' % getfqdn())
         # Singularity equivalent for backwards compatibility
