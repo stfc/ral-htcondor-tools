@@ -6,6 +6,9 @@ import sys
 from subprocess import Popen, PIPE
 from socket import getfqdn
 
+from allocate_ip import allocate_ip
+
+
 def gateway():
     gateway_needed = False
     for prefix in ['atl', 'cms', 'lhcb']:
@@ -98,6 +101,8 @@ def args_create(argv):
         dargs.append('--env=XRD_STREAMTIMEOUT=300')
         dargs.append('--env=APPTAINERENV_XRD_STREAMTIMEOUT=300')
         dargs.append('--env=SINGULARITYENV_XRD_STREAMTIMEOUT=300')
+        # Allocate least-recently-used IP from pool
+        dargs.append('--ip=%s' % allocate_ip())
     else:
         dargs.append('--label=xrootd-local-gateway=false')
 
