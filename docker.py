@@ -89,7 +89,7 @@ def args_create(argv):
         if primary_ipv6:
             primary_ipv6 = primary_ipv6.rstrip(':')
             dargs.append('--add-host=xrootd.echo.stfc.ac.uk ceph-gw10.gridpp.rl.ac.uk ceph-gw11.gridpp.rl.ac.uk:{}{}'.format(primary_ipv6, ':1000:2'))
-            dargs.append('--add-host=xrootd-gateway.echo.stfc.ac.uk:{}{}'.format(primary_ipv6, ':1000:2'))
+            dargs.append('--add-host=xrootd-gateway.echo.stfc.ac.uk:{}{}'.format(primary_ipv6, ':1000:3'))
         dargs.append('--env=XrdSecGSISRVNAMES=%s' % getfqdn())
         dargs.append('--env=APPTAINERENV_XrdSecGSISRVNAMES=%s' % getfqdn())
         # Singularity equivalent for backwards compatibility
