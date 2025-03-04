@@ -42,6 +42,11 @@ def args_create(argv):
     """
     dargs = []
 
+    if any('lhcb' in arg for arg in sys.argv):
+        dargs.append('--ulimit=nofile=1048575:1048575')
+    else:
+        dargs.append('--ulimit=nofile=2097152:2097152')
+
     if gateway():
         dargs.append('--label=xrootd-local-gateway=true')
         dargs.append('--network=ralworker')
