@@ -42,42 +42,10 @@ def args_create(argv):
     """
     dargs = []
 
-    # Allow apptainer to bind local hosts file
-    dargs.append('--env=APPTAINER_BINDPATH=/etc/hosts')
-    # Singularity equivalent for backwards compatibility
-    dargs.append('--env=SINGULARITY_BINDPATH=/etc/hosts')
-
-    # ATLAS fix for 21.0.XX release errors with frontier
-    dargs.append('--env=APPTAINERENV_FRONTIER_LOG_FILE=frontier.log')
-    # Singularity equivalent for backwards compatibility
-    dargs.append('--env=SINGULARITYENV_FRONTIER_LOG_FILE=frontier.log')
-
-    # Define a parent hostname variable
-    dargs.append('--env=PARENT_HOSTNAME=%s' % getfqdn())
-
-    # PANDA enviroment variables for ATLAS
-    dargs.append('--env=PANDA_HOSTNAME=%s' % getfqdn())
-    dargs.append('--env=APPTAINERENV_PANDA_HOSTNAME=%s' % getfqdn())
-    # Singularity equivalent for backwards compatibility
-    dargs.append('--env=SINGULARITYENV_PANDA_HOSTNAME=%s' % getfqdn())
-
-    # Prevent ATLAS pilot from attempting to kill orphaned processes
-    # at the end of each job.
-    # It may trigger a SIGKILL signal to the pilot.
-    dargs.append('--env=PILOT_NOKILL=1')
-
-    # Set security options to allow unprivileged apptainer to run
-    # The options are secure as long as the system administrator controls the images and does not allow user
-    # code to run as root, and are generally more secure than adding capabilities.
-    #
-    # Enable unshare to be called (which is needed to create namespaces)
-    dargs.append('--security-opt=seccomp=unconfined')
-    # Allow /proc to be mounted in an unprivileged process namespace (as done by apptainer exec -p)
-    dargs.append('--security-opt=systempaths=unconfined')
-    # Prevent any privilege escalation (prevents setuid programs from running)
-    dargs.append('--security-opt=no-new-privileges')
-    # In addition, the following option is recommended for allowing unprivileged fuse mounts on kernels that support that.
-    dargs.append('--device=/dev/fuse')
+    if any('lhcb' in arg for arg in sys.argv):
+        dargs.append('--ulimit=nofile=1048575:1048575')
+    else:
+        dargs.append('--ulimit=nofile=2097152:2097152')
 
     if gateway():
         dargs.append('--label=xrootd-local-gateway=true')
