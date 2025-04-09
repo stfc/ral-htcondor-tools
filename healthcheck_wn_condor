@@ -181,7 +181,7 @@ fi
 # If it's not, this can lock containers on the workernode and cause
 # the "Zombie container" issue where pilot containers aren't deleted
 debug "Checking if /pool is queryable"
-timeout 30 xfs_info /pool > /dev/null 2>&1
+timeout 60 xfs_info /pool > /dev/null 2>&1
 RC=$?
 if [ $RC -eq 124 ]
 then
