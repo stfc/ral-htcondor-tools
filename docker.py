@@ -76,6 +76,7 @@ def args_create(argv):
         if m:
             memory = int(m.group(1))
             dargs.append('--memory=%dm' % (memory*3))
+            dargs.append('--memory-swap=%dm' % (memory*3))
             dargs.append('--memory-reservation=%dm' % memory)
         else:
             dargs.append(arg)
